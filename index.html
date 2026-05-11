@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>Ascension Arc V5</title>
+<title>Ascension Arc V6</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Cinzel+Decorative:wght@900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
@@ -223,6 +223,23 @@ var STAT_QUESTIONS={
 };
 var PCOLS=["#A78BFA","#F472B6","#38BDF8","#4ADE80","#FBBF24","#F87171"];
 
+var TRACKER_TEMPLATES=[
+  {id:"protein",scope:"daily",label:"Protein",unit:"g",target:165,step:25,xp:15,stat:"Physical",active:true,desc:"Daily protein target for body recomp or general nutrition."},
+  {id:"water",scope:"daily",label:"Water",unit:"oz",target:100,step:16,xp:15,stat:"Physical",active:true,desc:"Hydration throughout the day."},
+  {id:"steps",scope:"daily",label:"Steps",unit:"steps",target:8000,step:1000,xp:15,stat:"Physical",active:true,desc:"Movement target."},
+  {id:"sleep",scope:"daily",label:"Sleep",unit:"hrs",target:7.5,step:0.5,xp:10,stat:"Mental",active:true,desc:"Sleep or rest target."},
+  {id:"calories",scope:"daily",label:"Calories",unit:"kcal",target:2300,step:250,xp:0,stat:"Physical",active:false,desc:"Optional calorie log; XP off by default."},
+  {id:"carbs",scope:"daily",label:"Carbs",unit:"g",target:220,step:25,xp:0,stat:"Physical",active:false,desc:"Optional macro log; XP off by default."},
+  {id:"fat",scope:"daily",label:"Fat",unit:"g",target:70,step:10,xp:0,stat:"Physical",active:false,desc:"Optional macro log; XP off by default."},
+  {id:"reading_week",scope:"weekly",label:"Reading",unit:"pages",target:100,step:10,xp:80,stat:"Intellect",active:true,desc:"Weekly reading goal."},
+  {id:"workouts_week",scope:"weekly",label:"Workouts",unit:"sessions",target:4,step:1,xp:80,stat:"Physical",active:true,desc:"Weekly workout consistency."},
+  {id:"study_week",scope:"weekly",label:"Focused Study",unit:"hrs",target:8,step:0.5,xp:80,stat:"Intellect",active:true,desc:"Deep work, school, chess, writing, or skill practice."},
+  {id:"creative_week",scope:"weekly",label:"Creative Time",unit:"sessions",target:3,step:1,xp:50,stat:"Intellect",active:true,desc:"Drawing, writing, music, or other creative practice."},
+  {id:"selfcare_week",scope:"weekly",label:"Self-Care",unit:"sessions",target:4,step:1,xp:50,stat:"Mental",active:true,desc:"Rest, skincare, journaling, quiet reset, prayer, or decompression."},
+  {id:"relationship_week",scope:"weekly",label:"Connection",unit:"check-ins",target:2,step:1,xp:50,stat:"Relationship",active:true,desc:"Intentional partner/family/friend connection."}
+];
+
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 var S={
   profile:null, profiles:[],
@@ -245,12 +262,13 @@ function getProfiles(){return lsG('arc_profiles')||[];}
 function saveProfiles(p){lsS('arc_profiles',p);}
 function loadArc(n){return lsG('arc_'+n+'_state');}
 function saveArc(n,a){lsS('arc_'+n+'_state',a);}
-function blankToday(){return {quests:{},boss:{},notes:"",focus:["","",""],timeline:[],appliedQuests:{},appliedBoss:{}};}
+function blankToday(){return {quests:{},boss:{},notes:"",focus:["","",""],timeline:[],trackers:{},appliedQuests:{},appliedBoss:{},appliedTrackers:{}};}
 function ensureToday(t){
   t=t||blankToday();
   if(!t.quests)t.quests={}; if(!t.boss)t.boss={}; if(typeof t.notes!=='string')t.notes=t.notes||"";
   if(!Array.isArray(t.focus))t.focus=["","",""]; if(!Array.isArray(t.timeline))t.timeline=[];
-  if(!t.appliedQuests)t.appliedQuests={}; if(!t.appliedBoss)t.appliedBoss={};
+  if(!t.trackers)t.trackers={};
+  if(!t.appliedQuests)t.appliedQuests={}; if(!t.appliedBoss)t.appliedBoss={}; if(!t.appliedTrackers)t.appliedTrackers={};
   return t;
 }
 function loadToday(n){return ensureToday(lsG('arc_'+n+'_today')||blankToday());}
@@ -276,11 +294,15 @@ function calcGain(score,val){
   if(val>=76)return Math.max(0,raw-1);
   return raw;
 }
+
+function cloneTracker(t){var r={};for(var k in t)r[k]=t[k];return r;}
+function defaultTrackerSettings(){return TRACKER_TEMPLATES.map(function(t){return cloneTracker(t);});}
 function makeArc(stats){
   return{level:0,xp:0,totalXp:0,stats:cp(stats),dayNumber:1,history:[],weekReviews:[],
     streak:0,bestStreak:0,lastDay:0,bossLog:[],mode:"school",
     statLabels:cp(DEFAULT_LABELS),questLabels:{},bossLabels:{},bossDescs:{},questXp:{},bossXp:{},
-    customQuests:[],customBosses:[],theme:"nightmare"};
+    customQuests:[],customBosses:[],theme:"nightmare",
+    trackerSettings:defaultTrackerSettings(),weeklyTrackers:{},weeklyAwards:{},weekNumber:1};
 }
 function cp(o){var r={};for(var k in o)r[k]=o[k];return r;}
 function sumObj(o){var s=0;for(var k in o)s+=o[k];return s;}
@@ -332,6 +354,9 @@ function ensureArc(a){
   if(!a.questXp)a.questXp={}; if(!a.bossXp)a.bossXp={};
   if(!a.customQuests)a.customQuests=[]; if(!a.customBosses)a.customBosses=[];
   if(!a.theme||!THEMES[a.theme])a.theme="nightmare";
+  if(!a.trackerSettings||!Array.isArray(a.trackerSettings))a.trackerSettings=defaultTrackerSettings();
+  a.trackerSettings=a.trackerSettings.map(function(t){var r=cloneTracker(t); if(typeof r.active==='undefined')r.active=true; if(!r.id)r.id=makeId('tr_'); if(!r.scope)r.scope='daily'; if(!r.unit)r.unit=''; if(typeof r.target!=='number')r.target=parseFloat(r.target)||1; if(typeof r.step!=='number')r.step=parseFloat(r.step)||1; if(typeof r.xp!=='number')r.xp=parseInt(r.xp)||0; if(!r.stat)r.stat='Discipline'; return r;});
+  if(!a.weeklyTrackers)a.weeklyTrackers={}; if(!a.weeklyAwards)a.weeklyAwards={}; if(!a.weekNumber)a.weekNumber=1;
   return a;
 }
 function applyXpDelta(delta){
@@ -345,8 +370,8 @@ function applyXpDelta(delta){
   if(leveled)S.lvlUp={level:arc.level,tier:getTier(arc.level),tierChanged:tierChanged};
   return {leveled:leveled,tierChanged:tierChanged};
 }
-function liveDayXp(){return sumObj((S.today&&S.today.quests)||{})+sumObj((S.today&&S.today.boss)||{});}
-function appliedDayXp(){return sumObj((S.today&&S.today.appliedQuests)||{})+sumObj((S.today&&S.today.appliedBoss)||{});}
+function liveDayXp(){var base=sumObj((S.today&&S.today.quests)||{})+sumObj((S.today&&S.today.boss)||{})+sumObj((S.today&&S.today.appliedTrackers)||{});var w=((S.today&&S.today.timeline)||[]).filter(function(x){return x.type==='weekly';}).reduce(function(a,x){return a+(x.xp||0);},0);return base+w;}
+function appliedDayXp(){return sumObj((S.today&&S.today.appliedQuests)||{})+sumObj((S.today&&S.today.appliedBoss)||{})+sumObj((S.today&&S.today.appliedTrackers)||{});}
 function rollbackTodayXp(){
   S.today=ensureToday(S.today);
   var applied=appliedDayXp();
@@ -401,13 +426,40 @@ function findBossById(id){return getBosses((S.arc&&S.arc.mode)||"school").filter
 function timeShort(d){d=d||new Date();var h=d.getHours(),m=String(d.getMinutes()).padStart(2,'0'),ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+ap;}
 function addTimeline(type,id,label,xp){S.today=ensureToday(S.today);S.today.timeline=(S.today.timeline||[]).concat([{id:makeId('tl_'),type:type,itemId:id,label:label,xp:xp,time:timeShort(),at:(new Date()).toISOString()}]);}
 function removeTimeline(type,id){S.today=ensureToday(S.today);var arr=S.today.timeline||[];for(var i=arr.length-1;i>=0;i--){if(arr[i].type===type&&arr[i].itemId===id){arr.splice(i,1);break;}}S.today.timeline=arr;}
-function completedLabels(){var out=[];Object.keys((S.today&&S.today.quests)||{}).forEach(function(id){var q=findQuestById(id);out.push({type:'quest',label:q?q.label:id,xp:S.today.quests[id]});});Object.keys((S.today&&S.today.boss)||{}).forEach(function(id){var b=findBossById(id);out.push({type:'boss',label:b?b.label:id,xp:S.today.boss[id]});});return out;}
+function completedLabels(){var out=[];Object.keys((S.today&&S.today.quests)||{}).forEach(function(id){var q=findQuestById(id);out.push({type:'quest',label:q?q.label:id,xp:S.today.quests[id]});});Object.keys((S.today&&S.today.boss)||{}).forEach(function(id){var b=findBossById(id);out.push({type:'boss',label:b?b.label:id,xp:S.today.boss[id]});});Object.keys((S.today&&S.today.appliedTrackers)||{}).forEach(function(id){var t=findTracker(id);out.push({type:'tracker',label:t?t.label:id,xp:S.today.appliedTrackers[id]});});((S.today&&S.today.timeline)||[]).filter(function(x){return x.type==='weekly';}).forEach(function(x){out.push({type:'weekly',label:x.label,xp:x.xp});});return out;}
 function progressRing(pct,label,color){pct=Math.max(0,Math.min(100,pct||0)); color=color||theme().accent;var r=44,c=2*Math.PI*r,off=c*(1-pct/100);return '<svg viewBox="0 0 110 110" style="width:110px;height:110px;flex-shrink:0;"><circle cx="55" cy="55" r="44" fill="none" stroke="rgba(255,255,255,.075)" stroke-width="9"/><circle cx="55" cy="55" r="44" fill="none" stroke="'+color+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" transform="rotate(-90 55 55)" style="transition:stroke-dashoffset .55s ease;"/><text x="55" y="51" text-anchor="middle" fill="#E2E8F0" font-size="20" font-family="IBM Plex Mono" font-weight="700">'+Math.round(pct)+'</text><text x="55" y="68" text-anchor="middle" fill="rgba(255,255,255,.35)" font-size="7" font-family="IBM Plex Mono" letter-spacing="2">'+esc(label||'DONE')+'</text></svg>';}
 function rankPreview(){var lvl=S.arc.level||0,cur=getTier(lvl),next=null;for(var i=0;i<TIERS.length;i++){if(TIERS[i].min>lvl){next=TIERS[i];break;}}if(!next)return {text:'Highest rank reached',pct:100,next:cur};var span=Math.max(1,next.min-cur.min);var pct=((lvl-cur.min)/span)*100;return {text:'Next: '+next.name+' at Level '+next.min,pct:pct,next:next};}
 function achievements(){var h=(S.arc&&S.arc.history)||[],boss=(S.arc&&S.arc.bossLog)||[],wr=(S.arc&&S.arc.weekReviews)||[];var qTotal=h.reduce(function(a,d){return a+(d.quests||0);},Object.keys((S.today&&S.today.quests)||{}).length);var xp=(S.arc&&S.arc.totalXp)||0,st=(S.arc&&S.arc.streak)||0;return [{name:'First Step',desc:'Complete your first quest.',on:qTotal>0||xp>0},{name:'Three-Day Flame',desc:'Hold a 3-day streak.',on:st>=3},{name:'Seven-Day Oath',desc:'Hold a 7-day streak.',on:st>=7},{name:'Boss Slayer',desc:'Complete any boss quest.',on:boss.length>0||Object.keys((S.today&&S.today.boss)||{}).length>0},{name:'Scholar\'s Focus',desc:'Close 5+ days.',on:h.length>=5},{name:'Arc Breaker',desc:'Complete 5 weekly reviews.',on:wr.length>=5},{name:'Divine Candidate',desc:'Reach Level 90.',on:(S.arc&&S.arc.level||0)>=90}];}
 function renderAchievements(){var rows='';achievements().forEach(function(a){rows+='<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);opacity:'+(a.on?1:.38)+';"><div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:'+(a.on?'#FBBF2420':'rgba(255,255,255,.04)')+';border:1px solid '+(a.on?'#FBBF2466':'rgba(255,255,255,.08)')+';color:'+(a.on?'#FBBF24':DIM)+';">'+(a.on?'✓':'○')+'</div><div><div style="font-size:10px;color:'+(a.on?'#E2E8F0':DIM)+';font-weight:700;letter-spacing:1px;">'+a.name+'</div><div style="font-size:8.5px;color:'+DIM+';line-height:1.4;margin-top:2px;">'+a.desc+'</div></div></div>';});return rows;}
-function backupPayload(){return {v:5,exportedAt:(new Date()).toISOString(),profile:S.profile,arc:S.arc,today:S.today};}
+function backupPayload(){return {v:6,exportedAt:(new Date()).toISOString(),profile:S.profile,arc:S.arc,today:S.today};}
 function downloadText(filename,text){var blob=new Blob([text],{type:'application/json'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},500);}
+
+
+function trackerSettings(){S.arc=ensureArc(S.arc);return S.arc.trackerSettings||[];}
+function getTrackers(scope,includeInactive){return trackerSettings().filter(function(t){return (!scope||t.scope===scope)&&(includeInactive||t.active!==false);});}
+function findTracker(id){return trackerSettings().filter(function(t){return t.id===id;})[0]||null;}
+function trackerValue(t){S.today=ensureToday(S.today);S.arc=ensureArc(S.arc);return t.scope==='weekly'?parseFloat(S.arc.weeklyTrackers[t.id]||0):parseFloat(S.today.trackers[t.id]||0);}
+function trackerPct(t){var target=parseFloat(t.target)||1;return Math.max(0,Math.min(100,(trackerValue(t)/target)*100));}
+function trackerAwardKey(t){return t.scope==='weekly'?'w'+((S.arc&&S.arc.weekNumber)||1)+'_'+t.id:t.id;}
+function trackerAwarded(t){var k=trackerAwardKey(t);return t.scope==='weekly'?!!(S.arc&&S.arc.weeklyAwards&&S.arc.weeklyAwards[k]):!!(S.today&&S.today.appliedTrackers&&S.today.appliedTrackers[k]);}
+function setTrackerAward(t,on){var k=trackerAwardKey(t),xp=parseInt(t.xp)||0;if(!xp)return;S.today=ensureToday(S.today);S.arc=ensureArc(S.arc);if(t.scope==='weekly'){S.arc.weeklyAwards=S.arc.weeklyAwards||{};if(on)S.arc.weeklyAwards[k]=xp;else delete S.arc.weeklyAwards[k];}else{S.today.appliedTrackers=S.today.appliedTrackers||{};if(on)S.today.appliedTrackers[k]=xp;else delete S.today.appliedTrackers[k];}}
+function applyTrackerGoalState(t,oldVal,newVal){var target=parseFloat(t.target)||1,xp=parseInt(t.xp)||0;if(!xp)return;var was=oldVal>=target,now=newVal>=target,awarded=trackerAwarded(t);if(now&&!awarded){setTrackerAward(t,true);applyXpDelta(xp);addTimeline(t.scope==='weekly'?'weekly':'tracker',t.id,t.label+' goal reached',xp);showToast(t.label+' goal reached · +'+xp+' XP','#4ADE80');}else if(!now&&awarded){setTrackerAward(t,false);applyXpDelta(-xp);removeTimeline(t.scope==='weekly'?'weekly':'tracker',t.id);showToast(t.label+' dropped below goal · -'+xp+' XP','#FBBF24');}}
+function setTrackerValueById(id,val){var t=findTracker(id);if(!t)return;S.today=ensureToday(S.today);S.arc=ensureArc(S.arc);var old=trackerValue(t);var v=Math.max(0,parseFloat(val)||0);if(t.scope==='weekly'){S.arc.weeklyTrackers=S.arc.weeklyTrackers||{};S.arc.weeklyTrackers[id]=v;}else{S.today.trackers=S.today.trackers||{};S.today.trackers[id]=v;}applyTrackerGoalState(t,old,v);saveArc(S.profile,S.arc);saveToday(S.profile,S.today);}
+function incrementTracker(id,amt){var t=findTracker(id);if(!t)return;setTrackerValueById(id,trackerValue(t)+(parseFloat(amt)||0));}
+function trackerBar(t,compact){var val=trackerValue(t),pct=trackerPct(t),col=(STAT_META[t.stat]||{color:theme().accent}).color,target=parseFloat(t.target)||0,done=val>=target;return '<div style="background:'+(compact?'rgba(255,255,255,.035)':PANEL)+';border:1px solid '+(done?col+'55':EDGE)+';border-radius:10px;padding:'+(compact?'11px':'13px')+';margin-bottom:8px;">'
+  +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="font-size:10px;color:'+col+';font-weight:700;letter-spacing:1.2px;">'+esc(t.label)+'</div><div style="font-size:8px;color:'+DIM+';margin-top:3px;line-height:1.4;">'+esc(t.scope.toUpperCase())+(t.xp>0?' · goal XP +'+t.xp:' · log only')+'</div></div><div style="text-align:right;"><div style="font-size:14px;color:#E2E8F0;font-weight:700;">'+num(val)+'<span style="font-size:8px;color:'+DIM+';"> / '+num(target)+' '+esc(t.unit||'')+'</span></div><div style="font-size:8px;color:'+(done?'#4ADE80':DIM)+';margin-top:2px;">'+Math.round(pct)+'%</div></div></div>'
+  +'<div style="height:6px;background:rgba(255,255,255,.07);border-radius:10px;overflow:hidden;margin-top:9px;"><div style="height:100%;width:'+Math.min(100,pct)+'%;background:'+col+';border-radius:10px;transition:width .25s ease;"></div></div>'
+  +'<div style="display:flex;gap:6px;margin-top:9px;"><button data-a="trkInc" data-id="'+esc(t.id)+'" data-step="'+esc(t.step||1)+'" style="flex:1;background:'+col+'14;border:1px solid '+col+'40;color:'+col+';border-radius:6px;padding:8px;font-size:8px;font-weight:700;letter-spacing:1px;">+'+num(t.step||1)+'</button><button data-a="trkInc" data-id="'+esc(t.id)+'" data-step="'+esc((t.step||1)*-1)+'" style="width:52px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:'+DIM+';border-radius:6px;padding:8px;font-size:8px;font-weight:700;">−</button><input id="trk-'+esc(t.id)+'" type="number" value="'+val+'" step="'+(t.step||1)+'" style="width:82px;font-size:9px;border-radius:6px;"/></div>'
+  +'</div>';}
+function renderTrackerDashboard(){var daily=getTrackers('daily',false),weekly=getTrackers('weekly',false),th=theme();var dDone=daily.filter(function(t){return trackerValue(t)>=parseFloat(t.target||1);}).length,wDone=weekly.filter(function(t){return trackerValue(t)>=parseFloat(t.target||1);}).length;var top=daily.slice(0,4).concat(weekly.slice(0,2));var rows=top.map(function(t){return trackerBar(t,true);}).join('')||'<div style="font-size:10px;color:'+DIM+';text-align:center;padding:16px 0;">No active trackers yet. Open Codex → Tracker Settings.</div>';return card(slbl('V6 TRACKERS')+'<div style="display:flex;gap:8px;margin-top:-4px;margin-bottom:12px;"><div style="flex:1;background:'+th.accent+'10;border:1px solid '+th.accent+'26;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:18px;color:'+th.accent+';font-weight:700;">'+dDone+'/'+daily.length+'</div><div style="font-size:7px;color:'+DIM+';letter-spacing:1px;">DAILY GOALS</div></div><div style="flex:1;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:18px;color:#FBBF24;font-weight:700;">'+wDone+'/'+weekly.length+'</div><div style="font-size:7px;color:'+DIM+';letter-spacing:1px;">WEEK '+((S.arc&&S.arc.weekNumber)||1)+'</div></div></div>'+rows+'<button data-a="tab" data-tab="track" style="width:100%;background:'+th.accent+'12;border:1px solid '+th.accent+'33;color:'+th.accent+';border-radius:7px;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;">OPEN TRACKERS</button>');}
+function renderTrackerPanel(scope){var list=getTrackers(scope,false);var title=scope==='weekly'?'WEEKLY GOALS':'DAILY TRACKERS';var sub=scope==='weekly'?'Increment reading, workouts, study, creative time, self-care, and connection throughout the week.':'Increment macros, water, steps, sleep, or other daily targets throughout the day.';return '<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:10px;margin:8px 14px 0;padding:14px;">'+slbl(title)+'<div style="font-size:9px;color:'+DIM+';line-height:1.55;margin-top:-5px;margin-bottom:12px;">'+sub+'</div>'+(list.map(function(t){return trackerBar(t,false);}).join('')||'<div style="font-size:10px;color:'+DIM+';text-align:center;padding:14px 0;">No active '+scope+' trackers. Turn them on in Codex.</div>')+(scope==='weekly'?'<button data-a="resetWeek" style="width:100%;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.28);border-radius:7px;color:#F87171;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;">START NEW WEEK / RESET WEEKLY PROGRESS</button>':'')+'</div>';}
+function renderTrackerSettings(){var rows='';getTrackers(null,true).forEach(function(t){var col=(STAT_META[t.stat]||{color:theme().accent}).color;rows+='<div style="border-bottom:1px solid rgba(255,255,255,.055);padding:11px 0;">'
+  +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><input type="checkbox" id="ta-'+esc(t.id)+'" '+(t.active!==false?'checked':'')+' style="width:16px;height:16px;accent-color:'+col+';"><input id="tl-'+esc(t.id)+'" type="text" value="'+esc(t.label)+'" style="flex:1;font-size:10px;border-radius:6px;"><span style="font-size:8px;color:'+DIM+';width:48px;text-align:right;">'+esc(t.scope)+'</span></div>'
+  +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;"><input id="tt-'+esc(t.id)+'" type="number" value="'+esc(t.target)+'" placeholder="Target" style="font-size:9px;border-radius:6px;"><input id="ts-'+esc(t.id)+'" type="number" value="'+esc(t.step)+'" placeholder="Step" style="font-size:9px;border-radius:6px;"><input id="tx-'+esc(t.id)+'" type="number" value="'+esc(t.xp)+'" placeholder="XP" style="font-size:9px;border-radius:6px;"></div>'
+  +'<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-top:6px;"><input id="tu-'+esc(t.id)+'" type="text" value="'+esc(t.unit||'')+'" placeholder="Unit" style="font-size:9px;border-radius:6px;"><select id="tstat-'+esc(t.id)+'" style="font-size:9px;border-radius:6px;">'+statOptions(t.stat)+'</select>'+(t.custom?'<button data-a="delTracker" data-id="'+esc(t.id)+'" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.28);border-radius:6px;color:#F87171;font-size:8px;padding:0 8px;">DEL</button>':'<span></span>')+'</div>'
+  +'</div>';});
+  var add='<div style="margin-top:12px;padding:12px;border:1px dashed rgba(255,255,255,.14);border-radius:8px;"><div style="font-size:8px;color:'+DIM+';letter-spacing:2px;margin-bottom:8px;">ADD CUSTOM TRACKER</div><input id="newTrLabel" type="text" placeholder="Tracker name, e.g. Skincare, Quran, Guitar" style="width:100%;font-size:10px;border-radius:6px;margin-bottom:6px;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;"><select id="newTrScope" style="font-size:9px;border-radius:6px;"><option value="daily">Daily</option><option value="weekly">Weekly</option></select><select id="newTrStat" style="font-size:9px;border-radius:6px;">'+statOptions('Discipline')+'</select></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;"><input id="newTrTarget" type="number" value="1" placeholder="Target" style="font-size:9px;border-radius:6px;"><input id="newTrStep" type="number" value="1" placeholder="Step" style="font-size:9px;border-radius:6px;"><input id="newTrUnit" type="text" value="x" placeholder="Unit" style="font-size:9px;border-radius:6px;"><input id="newTrXp" type="number" value="10" placeholder="XP" style="font-size:9px;border-radius:6px;"></div><button data-a="addTracker" style="width:100%;margin-top:8px;background:rgba(74,222,128,.09);border:1px solid rgba(74,222,128,.30);border-radius:7px;color:#4ADE80;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;">ADD TRACKER</button></div>';
+  return '<div style="font-size:9px;color:'+DIM+';line-height:1.55;margin-bottom:12px;">Turn on the goals that matter for this profile. XP is awarded once when the target is reached. Lowering below target rolls that XP back.</div>'+rows+'<button data-a="saveTrackers" style="width:100%;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.35);border-radius:7px;color:#A78BFA;padding:11px;font-size:8px;letter-spacing:2px;font-weight:700;margin-top:10px;">SAVE TRACKER SETTINGS</button>'+add;}
 
 function makeId(prefix){return prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function statOptions(sel){
@@ -430,7 +482,7 @@ function buildShareLink(){
 function buildQuestionnaireLink(){
   var base=String(location.href).split('#')[0];
   var a=ensureArc(S.arc);
-  var template={mode:a.mode,statLabels:a.statLabels,questLabels:a.questLabels,bossLabels:a.bossLabels,bossDescs:a.bossDescs,questXp:a.questXp,bossXp:a.bossXp,customQuests:a.customQuests,customBosses:a.customBosses,theme:a.theme};
+  var template={mode:a.mode,statLabels:a.statLabels,questLabels:a.questLabels,bossLabels:a.bossLabels,bossDescs:a.bossDescs,questXp:a.questXp,bossXp:a.bossXp,customQuests:a.customQuests,customBosses:a.customBosses,theme:a.theme,trackerSettings:a.trackerSettings};
   var payload={v:3,type:"questionnaire",profile:S.profile||"",template:template};
   return base+'#starter='+encData(payload);
 }
@@ -448,6 +500,7 @@ function applyCreateTemplate(arc){
   arc.customQuests=(t.customQuests||[]).map(function(q){return cp(q);});
   arc.customBosses=(t.customBosses||[]).map(function(b){return cp(b);});
   if(t.theme&&THEMES[t.theme])arc.theme=t.theme;
+  if(t.trackerSettings&&Array.isArray(t.trackerSettings))arc.trackerSettings=t.trackerSettings.map(function(x){return cloneTracker(x);});
   return arc;
 }
 function importStarterFromHash(){
@@ -571,7 +624,7 @@ function renderSelect(){
     +'<div style="width:100%;max-width:380px;">'
     +'<div style="text-align:center;margin-bottom:36px;">'
     +'<div style="font-family:\'Cinzel Decorative\',serif;font-size:24px;color:#E2E8F0;letter-spacing:4px;margin-bottom:8px;">ASCENSION ARC</div>'
-    +'<div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:3px;">V5 COMMAND CENTER · SELECT YOUR PROFILE</div>'
+    +'<div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:3px;">SELECT YOUR PROFILE</div>'
     +'</div>'
     +empty+cards
     +'<div class="crd" data-a="startCreate" style="background:rgba(139,92,246,0.08);border:1px dashed rgba(139,92,246,0.4);border-radius:8px;padding:18px 20px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:4px;">'
@@ -660,7 +713,7 @@ function renderApp(){
   var header='<div style="background:'+th.header+';border-bottom:1px solid '+tier.color+'28;padding:12px 16px 10px;position:sticky;top:0;z-index:10;">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
     +'<div><div style="font-family:\'Cinzel Decorative\',serif;font-size:14px;font-weight:900;letter-spacing:3px;color:#E2E8F0;line-height:1;">'+esc(S.profile)+'</div>'
-    +'<div style="font-size:7px;color:'+DIM+';letter-spacing:2px;margin-top:3px;">'+th.icon+' '+th.tag+' · V5 COMMAND CENTER · SCHOLAR-WARRIOR</div></div>'
+    +'<div style="font-size:7px;color:'+DIM+';letter-spacing:2px;margin-top:3px;">'+th.icon+' '+th.tag+' · SCHOLAR-WARRIOR</div></div>'
     +'<div style="display:flex;gap:10px;align-items:center;">'
     +'<div style="text-align:center;"><div style="font-size:18px;font-weight:700;line-height:1;color:'+sc+';">'+streak+'</div><div style="font-size:7px;color:'+DIM+';letter-spacing:1.5px;">STREAK</div></div>'
     +'<div style="text-align:right;">'
@@ -674,7 +727,7 @@ function renderApp(){
     +'<span class="crd" data-a="logout" style="font-size:7.5px;color:'+DIM+';">AVG '+statAvg+' · '+daysLeft+'d left · ⇄ profiles</span>'
     +'</div></div>';
 
-  var TABS=[{id:"profile",label:"HOME",icon:"◈"},{id:"quests",label:"QUESTS",icon:"⊕"},{id:"boss",label:"BOSS",icon:"★"},{id:"weekly",label:"REVIEW",icon:"↺"},{id:"codex",label:"CODEX",icon:"≡"}];
+  var TABS=[{id:"profile",label:"HOME",icon:"◈"},{id:"quests",label:"QUESTS",icon:"⊕"},{id:"track",label:"TRACK",icon:"▣"},{id:"boss",label:"BOSS",icon:"★"},{id:"codex",label:"CODEX",icon:"≡"}];
   var hasDot=Object.keys(S.today.boss).length>0;
   var nav='<div style="position:fixed;bottom:0;left:0;right:0;background:'+th.nav+';border-top:1px solid rgba(139,92,246,0.22);display:flex;z-index:10;">'
     +TABS.map(function(t){
@@ -687,6 +740,7 @@ function renderApp(){
   var tabHtml='';
   if(S.tab==="profile")tabHtml=renderProfileTab();
   else if(S.tab==="quests")tabHtml=renderQuestsTab();
+  else if(S.tab==="track")tabHtml=renderTrackTab();
   else if(S.tab==="boss")tabHtml=renderBossTab();
   else if(S.tab==="weekly")tabHtml=renderWeeklyTab();
   else if(S.tab==="codex")tabHtml=renderCodexTab();
@@ -764,7 +818,7 @@ function renderProfileTab(){
   var r=dayRating(totalToday);
   var rank=rankPreview();
   var modeToggle='<div style="margin:14px 14px 0;"><div style="display:flex;gap:8px;">'+[{id:"school",label:"📚 SCHOOL",col:"#38BDF8"},{id:"summer",label:"☀️ SUMMER",col:"#FB923C"}].map(function(m){var active=arc.mode===m.id;return '<div class="crd" data-a="quickMode" data-mode="'+m.id+'" style="flex:1;padding:12px;border-radius:8px;text-align:center;background:'+(active?m.col+'18':"rgba(255,255,255,0.04)")+';border:2px solid '+(active?m.col:'rgba(255,255,255,0.08)')+';color:'+(active?m.col:'rgba(255,255,255,0.35)')+';font-size:10px;font-weight:700;letter-spacing:1px;">'+m.label+'</div>';}).join('')+'</div><div style="font-size:8.5px;color:'+DIM+';text-align:center;margin-top:8px;">'+(isSummer?'☀️ Summer Arc · work, body, books, people':'📚 School Arc · law, discipline, intellect, ambition')+'</div></div>';
-  var hero='<div style="margin:14px 14px 0;padding:18px;border-radius:14px;background:linear-gradient(135deg,'+th.accent+'18,'+th.accent2+'10);border:1px solid '+th.accent+'38;display:flex;gap:16px;align-items:center;">'+progressRing(Math.min(100,totalToday/120*100),'XP',r.color)+'<div style="flex:1;min-width:0;"><div style="font-size:8px;letter-spacing:4px;color:'+DIM+';margin-bottom:6px;">COMMAND CENTER</div><div style="font-family:\'Cinzel Decorative\',serif;font-size:18px;letter-spacing:3px;color:#E2E8F0;line-height:1.15;">Day '+arc.dayNumber+'</div><div style="font-size:11px;color:'+r.color+';font-weight:700;margin-top:6px;">'+r.label+' · '+totalToday+' XP</div><div style="font-size:8.5px;color:'+MUTED+';line-height:1.55;margin-top:7px;">Level '+arc.level+' '+getTier(arc.level).name+' · '+completed+'/'+possible+' actions today · XP saves when you tap.</div><div style="height:5px;background:rgba(255,255,255,.07);border-radius:10px;overflow:hidden;margin-top:10px;"><div style="height:100%;width:'+Math.min(100,completionPct)+'%;background:linear-gradient(90deg,'+th.accent+','+th.accent2+');border-radius:10px;"></div></div></div></div>';
+  var hero='<div style="margin:14px 14px 0;padding:18px;border-radius:14px;background:linear-gradient(135deg,'+th.accent+'18,'+th.accent2+'10);border:1px solid '+th.accent+'38;display:flex;gap:16px;align-items:center;">'+progressRing(Math.min(100,totalToday/120*100),'XP',r.color)+'<div style="flex:1;min-width:0;"><div style="font-size:8px;letter-spacing:4px;color:'+DIM+';margin-bottom:6px;">V6 COMMAND CENTER</div><div style="font-family:\'Cinzel Decorative\',serif;font-size:18px;letter-spacing:3px;color:#E2E8F0;line-height:1.15;">Day '+arc.dayNumber+'</div><div style="font-size:11px;color:'+r.color+';font-weight:700;margin-top:6px;">'+r.label+' · '+totalToday+' XP</div><div style="font-size:8.5px;color:'+MUTED+';line-height:1.55;margin-top:7px;">Level '+arc.level+' '+getTier(arc.level).name+' · '+completed+'/'+possible+' actions today · XP saves when you tap.</div><div style="height:5px;background:rgba(255,255,255,.07);border-radius:10px;overflow:hidden;margin-top:10px;"><div style="height:100%;width:'+Math.min(100,completionPct)+'%;background:linear-gradient(90deg,'+th.accent+','+th.accent2+');border-radius:10px;"></div></div></div></div>';
   var focus=S.today.focus||["","",""];
   var focusCard=card(slbl('TODAY\'S FOCUS')+'<div style="font-size:9px;color:'+DIM+';line-height:1.55;margin-top:-4px;margin-bottom:10px;">Set the 3 things that would make today feel successful.</div>'+[0,1,2].map(function(i){return '<input id="focus-'+i+'" type="text" value="'+esc(focus[i]||'')+'" placeholder="Priority '+(i+1)+'..." maxlength="80" style="width:100%;margin-bottom:7px;font-size:10px;border-radius:6px;"/>';}).join('')+'<div style="font-size:8px;color:'+DIM+';text-align:right;">autosaves locally</div>');
   var timelineRows='';var tl=(S.today.timeline||[]).slice(-5).reverse();if(tl.length===0)timelineRows='<div style="font-size:10px;color:'+DIM+';text-align:center;padding:14px 0;">No actions logged yet. Complete a quest to start today\'s timeline.</div>';else tl.forEach(function(x){var col=x.type==='boss'?'#FBBF24':th.accent;timelineRows+='<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.045);"><div style="font-size:8px;color:'+DIM+';width:58px;flex-shrink:0;">'+esc(x.time||'')+'</div><div style="flex:1;"><div style="font-size:10px;color:#E2E8F0;line-height:1.35;">'+(x.type==='boss'?'★ ':'✓ ')+esc(x.label)+'</div><div style="font-size:8px;color:'+col+';margin-top:2px;">+'+x.xp+' XP · '+x.type+'</div></div></div>';});
@@ -775,7 +829,17 @@ function renderProfileTab(){
   var statBars='';STAT_KEYS.forEach(function(k){var v=arc.stats[k],m=STAT_META[k],gap=m.target-v;statBars+='<div style="margin-bottom:13px;"><div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:9px;color:'+m.color+';font-weight:700;letter-spacing:1.5px;">'+m.icon+' '+lbl4(k)+'</span><span style="font-size:9px;color:'+MUTED+';"><span style="color:#E2E8F0;font-weight:700;">'+v+'</span><span style="color:'+DIM+';"> → '+m.target+'</span><span style="color:'+(gap>0?'#EF4444':'#4ADE80')+';margin-left:4px;font-size:8px;">'+(gap>0?'-'+gap:'+'+Math.abs(gap))+'</span></span></div><div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;position:relative;"><div style="position:absolute;left:'+m.target+'%;top:0;bottom:0;width:1.5px;background:rgba(251,191,36,0.4);"></div><div style="height:100%;width:'+v+'%;background:'+m.color+';border-radius:3px;transition:width .7s ease;"></div></div></div>';});
   var phaseBars='';PHASES.forEach(function(p){var a=phase===p,d=arc.dayNumber>p.range[1];phaseBars+='<div style="flex:1;height:3px;border-radius:2px;background:'+(d?'#4ADE8066':a?th.accent:'rgba(255,255,255,0.08)')+';"></div>';});var phaseCard=card(slbl('CURRENT PHASE')+'<div style="font-size:13px;font-weight:700;color:'+th.accent+';letter-spacing:1px;">'+phase.name+'</div><div style="font-size:10px;color:'+MUTED+';margin-top:4px;font-style:italic;">"'+phase.q+'"</div><div style="display:flex;gap:3px;margin-top:12px;">'+phaseBars+'</div>');
   var chartCard='';if(arc.history.length>0){var last7=arc.history.slice(-7),bars='';last7.forEach(function(h){var rr=dayRating(h.xp),pct=Math.min(100,(h.xp/160)*100);bars+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><div style="width:100%;background:'+rr.color+'44;border-radius:3px 3px 0 0;height:'+pct+'%;min-height:4px;border:1px solid '+rr.color+'66;"></div><span style="font-size:7px;color:'+DIM+';">'+h.day+'</span></div>';});chartCard=card(slbl('LAST 7 DAYS')+'<div style="display:flex;gap:4px;align-items:flex-end;height:56px;">'+bars+'</div><div style="display:flex;justify-content:space-between;margin-top:10px;font-size:8.5px;"><span style="color:'+DIM+';">Total XP: <span style="color:'+th.accent+';">'+num(arc.totalXp)+'</span></span><span style="color:'+DIM+';">Reviews: <span style="color:#4ADE80;">'+(arc.weekReviews||[]).length+'</span></span></div>');}
-  return '<div style="margin:10px 14px 0;padding:8px 12px;border-radius:999px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25);color:#4ADE80;font-size:8px;letter-spacing:2px;text-align:center;font-weight:700;">V5 COMMAND CENTER ACTIVE</div>'+modeToggle+hero+focusCard+timelineCard+rankCard+themeHomeCard()+streakCard+radarCard+card(slbl('CORE STATS')+statBars)+phaseCard+chartCard+'<div style="height:8px;"></div>';
+  return modeToggle+hero+renderTrackerDashboard()+focusCard+timelineCard+rankCard+themeHomeCard()+streakCard+radarCard+card(slbl('CORE STATS')+statBars)+phaseCard+chartCard+'<div style="height:8px;"></div>';
+}
+
+// ─── TRACK TAB ────────────────────────────────────────────────────────────────
+function renderTrackTab(){
+  var arc=S.arc,isSummer=arc.mode==="summer";
+  var mc=isSummer?"#FB923C":"#38BDF8",ml=isSummer?"☀️ SUMMER":"📚 SCHOOL";
+  var hdr='<div style="background:rgba(74,222,128,0.055);border:1px solid rgba(74,222,128,0.22);border-radius:10px;margin:14px 14px 0;padding:14px 16px;">'
+    +'<div style="font-size:8px;letter-spacing:4px;color:#4ADE80;margin-bottom:6px;">INCREMENTAL TRACKING · '+ml+'</div>'
+    +'<div style="font-size:10px;color:'+MUTED+';line-height:1.65;">Use this throughout the day for macros, water, reading, study, creative time, self-care, workouts, or weekly goals. Home only shows the top few so the app stays calm.</div></div>';
+  return hdr+renderTrackerPanel('daily')+renderTrackerPanel('weekly')+'<div style="height:8px;"></div>';
 }
 
 // ─── QUESTS TAB ───────────────────────────────────────────────────────────────
@@ -1069,6 +1133,7 @@ function renderCodexTab(){
     +codexSection('theme','PROFILE THEME','Choose the visual skin for this profile only.',theme().accent,renderThemePicker(),false)
     +codexSection('labels','STAT LABELS','Rename Physical, Mental, Discipline, and other stat categories.','#A78BFA',labelEditor,false)
     +codexSection('questionnaire','QUESTIONNAIRE GUIDE','See the questions used to create starting stat scores.','#38BDF8',renderQuestionnaireGuide(),false)
+    +codexSection('trackers','TRACKER SETTINGS','Choose daily and weekly incremental goals for this profile.','#4ADE80',renderTrackerSettings(),false)
     +codexSection('quests','QUEST EDITOR','Rename quests, change XP, or add custom quests for the current season.','#A78BFA',renderQuestEditor(),false)
     +codexSection('bosses','BOSS QUEST EDITOR','Rename boss quests, edit descriptions, or add weekly boss quests.','#FBBF24',renderBossEditor(),false)
     +codexSection('sheet','CHARACTER SHEET','Profile summary and current arc stats.',mc,sRows,false)
@@ -1095,6 +1160,7 @@ function attachInputs(){
   if(nta){nta.addEventListener('input',function(){S.today.notes=nta.value;saveToday(S.profile,S.today);});}
   [0,1,2].forEach(function(i){var f=document.getElementById('focus-'+i);if(f){f.addEventListener('input',function(){S.today=ensureToday(S.today);S.today.focus[i]=f.value;saveToday(S.profile,S.today);});}});
   ['win','weak','drained','restored','lesson','tomorrow'].forEach(function(k){var r=document.getElementById('cr-'+k);if(r){r.addEventListener('input',function(){S.dayReview[k]=r.value;});}});
+  document.querySelectorAll('input[id^=\"trk-\"]').forEach(function(inp){inp.addEventListener('change',function(){setTrackerValueById(inp.id.slice(4),inp.value);render();});});
   // Stat sliders (profile creation)
   document.querySelectorAll('input[data-sl]').forEach(function(sl){
     sl.addEventListener('input',function(){
@@ -1215,7 +1281,7 @@ document.addEventListener('click',function(e){
 
   }else if(a==='commit'){
     S.today=ensureToday(S.today);syncTodayXp();
-    var qxp=sumObj(S.today.quests),bxp2=sumObj(S.today.boss),earned=qxp+bxp2;
+    var qxp=sumObj(S.today.quests),bxp2=sumObj(S.today.boss),earned=liveDayXp();
     if(earned===0){showToast("Complete at least one quest first.","#EF4444");return;}
     S.closeModal=true;S.dayReview={win:"",weak:"",drained:"",restored:"",lesson:"",tomorrow:""};render();
 
@@ -1224,7 +1290,7 @@ document.addEventListener('click',function(e){
 
   }else if(a==='confirmCloseDay'){
     S.today=ensureToday(S.today);syncTodayXp();
-    var qxp=sumObj(S.today.quests),bxp2=sumObj(S.today.boss),earned=qxp+bxp2;
+    var qxp=sumObj(S.today.quests),bxp2=sumObj(S.today.boss),earned=liveDayXp();
     if(earned===0){S.closeModal=false;showToast("Complete at least one quest first.","#EF4444");render();return;}
     var arc2=ensureArc(cp(S.arc));arc2.stats=cp(S.arc.stats);
     var streak2=(arc2.lastDay===arc2.dayNumber-1||arc2.lastDay===0)?(arc2.streak||0)+1:1;
@@ -1232,7 +1298,7 @@ document.addEventListener('click',function(e){
     var bossEntries=Object.keys(S.today.boss).map(function(id){var bf=getAllBosses().filter(function(x){return x.id===id;})[0];return{day:arc2.dayNumber,id:id,label:bf?bf.label:id,xp:S.today.boss[id]};});
     arc2.streak=streak2;arc2.bestStreak=best;arc2.lastDay=arc2.dayNumber;
     var review=cp(S.dayReview||{});
-    arc2.history=(arc2.history||[]).concat([{day:arc2.dayNumber,xp:earned,quests:Object.keys(S.today.quests).length,boss:Object.keys(S.today.boss).length,notes:S.today.notes||"",focus:(S.today.focus||[]).slice(),timeline:(S.today.timeline||[]).slice(),review:review,mode:arc2.mode,date:(new Date()).toISOString().slice(0,10)}]);
+    arc2.history=(arc2.history||[]).concat([{day:arc2.dayNumber,xp:earned,quests:Object.keys(S.today.quests).length,boss:Object.keys(S.today.boss).length,notes:S.today.notes||"",focus:(S.today.focus||[]).slice(),timeline:(S.today.timeline||[]).slice(),trackers:cp(S.today.trackers||{}),weeklyTrackers:cp(S.arc.weeklyTrackers||{}),weekNumber:S.arc.weekNumber||1,review:review,mode:arc2.mode,date:(new Date()).toISOString().slice(0,10)}]);
     arc2.bossLog=(arc2.bossLog||[]).concat(bossEntries);arc2.dayNumber=arc2.dayNumber+1;
     S.arc=arc2;saveArc(S.profile,arc2);
     S.today=blankToday();saveToday(S.profile,S.today);
@@ -1346,6 +1412,27 @@ document.addEventListener('click',function(e){
     var tid=el.dataset.theme;
     if(THEMES[tid]){S.arc=ensureArc(cp(S.arc));S.arc.theme=tid;saveArc(S.profile,S.arc);render();showToast('Theme set: '+THEMES[tid].name,THEMES[tid].accent);}
 
+
+
+  }else if(a==='trkInc'){
+    var tidx=el.dataset.id,step=parseFloat(el.dataset.step)||0;incrementTracker(tidx,step);render();
+
+  }else if(a==='saveTrackers'){
+    S.arc=ensureArc(cp(S.arc));
+    S.arc.trackerSettings=(S.arc.trackerSettings||[]).map(function(t){var r=cloneTracker(t),id=t.id;var active=document.getElementById('ta-'+id),label=document.getElementById('tl-'+id),target=document.getElementById('tt-'+id),step=document.getElementById('ts-'+id),xp=document.getElementById('tx-'+id),unit=document.getElementById('tu-'+id),stat=document.getElementById('tstat-'+id);r.active=active?!!active.checked:r.active;r.label=(label&&label.value.trim())?label.value.trim():r.label;r.target=parseFloat(target?target.value:r.target)||r.target;r.step=parseFloat(step?step.value:r.step)||r.step;r.xp=parseInt(xp?xp.value:r.xp)||0;r.unit=(unit?unit.value:r.unit)||'';r.stat=(stat&&stat.value)||r.stat;return r;});
+    saveArc(S.profile,S.arc);render();showToast('Tracker settings saved.','#4ADE80');
+
+  }else if(a==='addTracker'){
+    var lab=document.getElementById('newTrLabel'),sc=document.getElementById('newTrScope'),st=document.getElementById('newTrStat'),ta=document.getElementById('newTrTarget'),sp=document.getElementById('newTrStep'),un=document.getElementById('newTrUnit'),xp=document.getElementById('newTrXp');
+    var label=(lab?lab.value:'').trim();if(!label){showToast('Tracker name required.','#EF4444');return;}
+    var tr={id:makeId('tr_'),scope:(sc&&sc.value)||'daily',label:label,unit:(un&&un.value)||'',target:parseFloat(ta?ta.value:1)||1,step:parseFloat(sp?sp.value:1)||1,xp:parseInt(xp?xp.value:10)||0,stat:(st&&st.value)||'Discipline',active:true,custom:true,desc:'Custom tracker.'};
+    S.arc=ensureArc(cp(S.arc));S.arc.trackerSettings=(S.arc.trackerSettings||[]).concat([tr]);saveArc(S.profile,S.arc);render();showToast('Custom tracker added.','#4ADE80');
+
+  }else if(a==='delTracker'){
+    var didt=el.dataset.id;S.arc=ensureArc(cp(S.arc));S.arc.trackerSettings=(S.arc.trackerSettings||[]).filter(function(t){return t.id!==didt;});delete S.arc.weeklyTrackers[didt];Object.keys(S.arc.weeklyAwards||{}).forEach(function(k){if(k.indexOf('_'+didt)>-1)delete S.arc.weeklyAwards[k];});if(S.today.trackers)delete S.today.trackers[didt];if(S.today.appliedTrackers)delete S.today.appliedTrackers[didt];saveArc(S.profile,S.arc);saveToday(S.profile,S.today);render();showToast('Tracker deleted.','#F87171');
+
+  }else if(a==='resetWeek'){
+    S.arc=ensureArc(cp(S.arc));S.arc.weeklyTrackers={};S.arc.weeklyAwards={};S.arc.weekNumber=(S.arc.weekNumber||1)+1;saveArc(S.profile,S.arc);render();showToast('New weekly tracker cycle started.','#FBBF24');
 
   }else if(a==='exportBackup'){
     var fname='ascension-arc-'+String(S.profile||'profile').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-backup.json';
