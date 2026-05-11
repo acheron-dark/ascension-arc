@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Ascension Arc</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Cinzel+Decorative:wght@900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg,#080810);min-height:100vh}
+body{font-family:'IBM Plex Mono',monospace,monospace;color:#E2E8F0}
+#root{min-height:100vh}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:rgba(139,92,246,.4);border-radius:2px}
+@keyframes slideUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes popIn{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes tabInRight{from{transform:translateX(22px);opacity:.15;filter:blur(2px)}to{transform:translateX(0);opacity:1;filter:blur(0)}}
+@keyframes tabInLeft{from{transform:translateX(-22px);opacity:.15;filter:blur(2px)}to{transform:translateX(0);opacity:1;filter:blur(0)}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 rgba(167,139,250,0)}50%{box-shadow:0 0 18px rgba(167,139,250,.16)}}
+.su{animation:slideUp .28s ease}
+.fade{animation:slideUp .35s ease}
+.tabInRight{animation:tabInRight .26s cubic-bezier(.22,.61,.36,1)}
+.tabInLeft{animation:tabInLeft .26s cubic-bezier(.22,.61,.36,1)}
+details.codexBox{background:var(--panel,rgba(255,255,255,0.028));border:1px solid var(--edge,rgba(255,255,255,0.07));border-radius:10px;margin:10px 14px 0;overflow:hidden}
+details.codexBox>summary{list-style:none;padding:15px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px}
+details.codexBox>summary::-webkit-details-marker{display:none}
+.codexBody{padding:0 16px 16px;border-top:1px solid rgba(255,255,255,.055)}
+.chev{transition:transform .18s ease;color:var(--accent,#A78BFA)}
+details[open] .chev{transform:rotate(90deg)}
+.themeGlow{animation:pulseGlow 3.8s ease-in-out infinite}
+input:focus,textarea:focus{outline:none}
+textarea{resize:vertical}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:rgba(255,255,255,.1);cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#A78BFA;cursor:pointer;border:2px solid #080810}
+input[type=text],input[type=number],select{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#E2E8F0;font-family:'IBM Plex Mono',monospace;padding:7px 10px}
+select option{background:#111118;color:#E2E8F0}
+.sharebox{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#E2E8F0;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:9px;min-height:52px;line-height:1.45}
+.qrow{cursor:pointer;border-radius:3px;transition:background .12s}
+.qrow:hover{background:rgba(139,92,246,.07)}
+.crd{cursor:pointer;transition:filter .12s}
+.crd:hover{filter:brightness(1.15)}
+button{cursor:pointer;font-family:'IBM Plex Mono',monospace,monospace}
+button:active{opacity:.7}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+var TIERS=[
+  {name:"Sleeper",      min:0,  max:14,  color:"#94A3B8"},
+  {name:"Awakened",     min:15, max:29,  color:"#38BDF8"},
+  {name:"Ascended",     min:30, max:44,  color:"#A78BFA"},
+  {name:"Transcendent", min:45, max:59,  color:"#FBBF24"},
+  {name:"Supreme",      min:60, max:74,  color:"#F87171"},
+  {name:"Sacred",       min:75, max:89,  color:"#F472B6"},
+  {name:"Divine",       min:90, max:100, color:"#FB923C"},
+];
+var STAT_META={
+  Physical:     {color:"#F87171", icon:"⚔", target:65},
+  Mental:       {color:"#38BDF8", icon:"◈", target:65},
+  Discipline:   {color:"#FBBF24", icon:"⊕", target:76},
+  Intellect:    {color:"#A78BFA", icon:"✦", target:82},
+  Ambition:     {color:"#FB923C", icon:"▲", target:84},
+  Relationship: {color:"#F472B6", icon:"♡", target:74},
+};
+var STAT_KEYS=["Physical","Mental","Discipline","Intellect","Ambition","Relationship"];
+var DEFAULT_LABELS={Physical:"Physical",Mental:"Mental",Discipline:"Discipline",Intellect:"Intellect",Ambition:"Ambition",Relationship:"Relationship"};
+
+var THEMES={
+  nightmare:{name:"Nightmare Ascension",tag:"SHADOW PATH",icon:"☾",bg:"#080810",bg2:"#120f1d",panel:"rgba(255,255,255,0.032)",edge:"rgba(167,139,250,0.14)",muted:"rgba(255,255,255,0.38)",dim:"rgba(255,255,255,0.20)",accent:"#A78BFA",accent2:"#38BDF8",header:"linear-gradient(180deg,#100e1a,#080810)",nav:"rgba(8,8,16,0.97)",desc:"Dark violet, steel, and nightmare-trial energy."},
+  heavenly:{name:"Heavenly Blessing",tag:"CELESTIAL PATH",icon:"✿",bg:"#100b12",bg2:"#24131c",panel:"rgba(255,244,235,0.048)",edge:"rgba(251,191,36,0.18)",muted:"rgba(255,244,235,0.50)",dim:"rgba(255,244,235,0.26)",accent:"#FBBF24",accent2:"#F472B6",header:"linear-gradient(180deg,#24131c,#100b12)",nav:"rgba(20,10,17,0.97)",desc:"Warm gold, red-thread, moonlit-cloud energy."},
+  scholar:{name:"Arcane Scholar",tag:"LAW CODEX",icon:"◆",bg:"#06101c",bg2:"#0f172a",panel:"rgba(226,232,240,0.040)",edge:"rgba(56,189,248,0.16)",muted:"rgba(226,232,240,0.45)",dim:"rgba(226,232,240,0.23)",accent:"#38BDF8",accent2:"#A78BFA",header:"linear-gradient(180deg,#0f172a,#06101c)",nav:"rgba(6,16,28,0.97)",desc:"Cleaner academy, strategy, and disciplined study energy."}
+};
+
+var SCHOOL_QUESTS=[
+  {id:"s1", stat:"Physical",     label:"Full workout",                               xp:30},
+  {id:"s2", stat:"Physical",     label:"Short workout (20-30 min)",                  xp:20},
+  {id:"s3", stat:"Physical",     label:"8,000+ steps",                               xp:15},
+  {id:"s4", stat:"Physical",     label:"10,000+ steps",                              xp:20},
+  {id:"s5", stat:"Physical",     label:"Hit 150g+ protein",                          xp:10},
+  {id:"s6", stat:"Physical",     label:"Hit 165g+ protein",                          xp:15},
+  {id:"s7", stat:"Physical",     label:"Stretch / mobility / recovery",              xp:10},
+  {id:"s8", stat:"Mental",       label:"Pray with focus",                            xp:10},
+  {id:"s9", stat:"Mental",       label:"Journal / reflect",                          xp:10},
+  {id:"s10",stat:"Mental",       label:"10-min walk, no phone or audio",             xp:10},
+  {id:"s11",stat:"Mental",       label:"Name one stressor + your response",          xp:10},
+  {id:"s12",stat:"Discipline",   label:"Complete Top 3 tasks",                       xp:20},
+  {id:"s13",stat:"Discipline",   label:"Start first task before phone spiral",       xp:10},
+  {id:"s14",stat:"Discipline",   label:"Stay under your phone limit",                xp:10},
+  {id:"s15",stat:"Discipline",   label:"Night-before plan written",                  xp:10},
+  {id:"s16",stat:"Discipline",   label:"Reset after distraction, didn't quit",       xp:10},
+  {id:"s17",stat:"Intellect",    label:"2 focused hours: law / chess / writing",     xp:25},
+  {id:"s18",stat:"Intellect",    label:"1 focused hour",                             xp:15},
+  {id:"s19",stat:"Intellect",    label:"Chess puzzles or serious game review",       xp:10},
+  {id:"s20",stat:"Intellect",    label:"Legal writing practice or revision",         xp:15},
+  {id:"s21",stat:"Intellect",    label:"Read 10+ pages of serious material",         xp:10},
+  {id:"s22",stat:"Ambition",     label:"Career / job action",                        xp:15},
+  {id:"s23",stat:"Ambition",     label:"Networking message or follow-up",            xp:15},
+  {id:"s24",stat:"Ambition",     label:"Do one long-delayed task",                   xp:20},
+  {id:"s25",stat:"Ambition",     label:"Make a hard but mature decision",            xp:20},
+  {id:"s26",stat:"Relationship", label:"Meaningful partner check-in",                xp:15},
+  {id:"s27",stat:"Relationship", label:"Reach out to family",                        xp:10},
+  {id:"s28",stat:"Relationship", label:"Reach out to a friend",                      xp:10},
+  {id:"s29",stat:"Relationship", label:"Practice presence, fully there",             xp:15},
+  {id:"s30",stat:"Relationship", label:"Set or respect a boundary",                  xp:15},
+];
+var SUMMER_QUESTS=[
+  {id:"m1", stat:"Physical",     label:"Full workout",                               xp:30},
+  {id:"m2", stat:"Physical",     label:"Short workout (20-30 min)",                  xp:20},
+  {id:"m3", stat:"Physical",     label:"8,000+ steps",                               xp:15},
+  {id:"m4", stat:"Physical",     label:"10,000+ steps",                              xp:20},
+  {id:"m5", stat:"Physical",     label:"Hit 150g+ protein",                          xp:10},
+  {id:"m6", stat:"Physical",     label:"Hit 165g+ protein",                          xp:15},
+  {id:"m7", stat:"Physical",     label:"70+ oz of water",                            xp:10},
+  {id:"m8", stat:"Physical",     label:"100+ oz of water",                           xp:15},
+  {id:"m9", stat:"Physical",     label:"Stretch / mobility / recovery",              xp:10},
+  {id:"m10",stat:"Mental",       label:"Pray with focus",                            xp:10},
+  {id:"m11",stat:"Mental",       label:"Journal / reflect",                          xp:10},
+  {id:"m12",stat:"Mental",       label:"10-min walk, no phone or audio",             xp:10},
+  {id:"m13",stat:"Mental",       label:"Name one stressor + your response",          xp:10},
+  {id:"m14",stat:"Mental",       label:"Intentional decompression after work",       xp:10},
+  {id:"m15",stat:"Discipline",   label:"Complete Top 3 tasks for the day",           xp:20},
+  {id:"m16",stat:"Discipline",   label:"Showed up to work prepared and on time",     xp:15},
+  {id:"m17",stat:"Discipline",   label:"Stay under your phone limit",                xp:10},
+  {id:"m18",stat:"Discipline",   label:"Night-before plan written",                  xp:10},
+  {id:"m19",stat:"Discipline",   label:"Reset after distraction, didn't quit",       xp:10},
+  {id:"m20",stat:"Intellect",    label:"Read 30+ pages",                             xp:20},
+  {id:"m21",stat:"Intellect",    label:"Read 15+ pages",                             xp:10},
+  {id:"m22",stat:"Intellect",    label:"Chess puzzles or serious game review",       xp:10},
+  {id:"m23",stat:"Intellect",    label:"Write: journal, essay, or creative",         xp:15},
+  {id:"m24",stat:"Intellect",    label:"Learn something new (podcast, article)",     xp:10},
+  {id:"m25",stat:"Ambition",     label:"Go above expected at work today",            xp:20},
+  {id:"m26",stat:"Ambition",     label:"Network with someone at work",               xp:15},
+  {id:"m27",stat:"Ambition",     label:"Save or budget from paycheck",               xp:15},
+  {id:"m28",stat:"Ambition",     label:"Resume, applications, or future planning",   xp:15},
+  {id:"m29",stat:"Ambition",     label:"Do one long-delayed life task",              xp:20},
+  {id:"m30",stat:"Relationship", label:"Quality time or check-in with partner",      xp:15},
+  {id:"m31",stat:"Relationship", label:"Reach out to or spend time with family",     xp:10},
+  {id:"m32",stat:"Relationship", label:"Hang out with or reach out to a friend",     xp:15},
+  {id:"m33",stat:"Relationship", label:"Plan or attend something social",            xp:10},
+  {id:"m34",stat:"Relationship", label:"Practice presence, phone away, fully there", xp:15},
+  {id:"m35",stat:"Relationship", label:"Set or respect a boundary",                  xp:15},
+];
+var SCHOOL_BOSSES=[
+  {id:"sb1",stat:"Physical",     icon:"⚔",label:"Physical Boss",    xp:150,desc:"4-5 workouts + hit protein 5+ days in one week"},
+  {id:"sb2",stat:"Mental",       icon:"◈",label:"Mental Boss",       xp:100,desc:"Full weekly reflection + identify stress patterns"},
+  {id:"sb3",stat:"Discipline",   icon:"⊕",label:"Discipline Boss",   xp:150,desc:"Plan the week Sunday + follow schedule 5/7 days"},
+  {id:"sb4",stat:"Intellect",    icon:"✦",label:"Intellect Boss",    xp:150,desc:"8+ total focused study / chess / writing hours"},
+  {id:"sb5",stat:"Ambition",     icon:"▲",label:"Ambition Boss",     xp:125,desc:"Apply to a job, reach a contact, or complete a major delayed task"},
+  {id:"sb6",stat:"Relationship", icon:"♡",label:"Relationship Boss", xp:100,desc:"Quality time with partner + family call + friend reach-out in one week"},
+  {id:"sb7",stat:null,           icon:"★",label:"Arc Boss",          xp:400,desc:"Complete all 6 weekly boss quests in the same week"},
+];
+var SUMMER_BOSSES=[
+  {id:"mb1",stat:"Physical",     icon:"⚔",label:"Physical Boss",    xp:150,desc:"4-5 workouts + protein 5+ days + 70oz water 5+ days"},
+  {id:"mb2",stat:"Mental",       icon:"◈",label:"Mental Boss",       xp:100,desc:"Full weekly reflection + intentional decompression every day"},
+  {id:"mb3",stat:"Discipline",   icon:"⊕",label:"Discipline Boss",   xp:150,desc:"Showed up prepared to work all 5 days + planned each night"},
+  {id:"mb4",stat:"Intellect",    icon:"✦",label:"Intellect Boss",    xp:150,desc:"Read 100+ pages in the week OR finish a book"},
+  {id:"mb5",stat:"Ambition",     icon:"▲",label:"Ambition Boss",     xp:125,desc:"Notable impression at work + saved from paycheck + one future-building action"},
+  {id:"mb6",stat:"Relationship", icon:"♡",label:"Relationship Boss", xp:100,desc:"Quality time with partner + family time + hang with at least one friend"},
+  {id:"mb7",stat:null,           icon:"★",label:"Arc Boss",          xp:400,desc:"Complete all 6 weekly boss quests in the same week"},
+];
+var PHASES=[
+  {range:[1,10], name:"Sleeper Inventory",       q:"Where am I actually starting?"},
+  {range:[11,25],name:"Awoken Routine",           q:"Can I be consistent without motivation?"},
+  {range:[26,45],name:"Ascended Pressure",        q:"Who am I when things get inconvenient?"},
+  {range:[46,60],name:"Transcendent Integration", q:"What version of me is becoming permanent?"},
+];
+var SCORE_LABELS=["—","Barely","Maintained","Solid","Strong","Excellent"];
+var SCORE_COLORS=["#6B7280","#6B7280","#38BDF8","#4ADE80","#FBBF24","#FB923C"];
+var AMAN_STATS={Physical:54,Mental:57,Discipline:70,Intellect:78,Ambition:81,Relationship:68};
+var NEUTRAL_STATS={Physical:50,Mental:50,Discipline:50,Intellect:50,Ambition:50,Relationship:50};
+var STAT_QUESTIONS={
+  Physical:[
+    "I move my body consistently and feel physically capable.",
+    "I take care of sleep, recovery, stretching, or soreness before it becomes a problem.",
+    "My food and hydration usually support my goals instead of working against them.",
+    "I have energy through the day without constantly crashing.",
+    "I feel connected to my body and can notice what it needs."
+  ],
+  Mental:[
+    "I can name what I am feeling instead of letting it silently control me.",
+    "When stressed, I have healthy ways to calm down or reset.",
+    "I make space for prayer, reflection, quiet, or mindfulness.",
+    "I can sit with discomfort without immediately escaping into my phone.",
+    "My self-talk is mostly fair, grounded, and compassionate."
+  ],
+  Discipline:[
+    "I do what I planned even when motivation is low.",
+    "I start important tasks before distractions take over.",
+    "I can recover after a bad hour or bad day without quitting the whole plan.",
+    "My routines are written down, visible, and realistic.",
+    "I keep promises to myself at least as seriously as promises to others."
+  ],
+  Intellect:[
+    "I spend real time learning, reading, practicing, or improving a skill.",
+    "I can focus deeply without constantly switching tasks.",
+    "I review mistakes so I actually learn from them.",
+    "I pursue curiosity, creativity, or thoughtful conversation.",
+    "I challenge my mind instead of only consuming easy content."
+  ],
+  Ambition:[
+    "I take concrete steps toward my future instead of only thinking about it.",
+    "I handle career, money, school, or life admin before it becomes urgent.",
+    "I can make mature decisions even when they are inconvenient.",
+    "I am building something I will be proud of six months from now.",
+    "I follow through after the initial excitement wears off."
+  ],
+  Relationship:[
+    "I communicate honestly and kindly with the people closest to me.",
+    "I am present when spending time with my partner, family, or friends.",
+    "I show appreciation instead of assuming people already know.",
+    "I respect boundaries, including my own.",
+    "I repair tension with maturity instead of avoidance or defensiveness."
+  ]
+};
+var PCOLS=["#A78BFA","#F472B6","#38BDF8","#4ADE80","#FBBF24","#F87171"];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+var S={
+  profile:null, profiles:[],
+  arc:null, today:{quests:{},boss:{},notes:""},
+  tab:"profile",
+  toast:null, toastTimer:null,
+  modeModal:false, lvlUp:null,
+  creating:false, createStep:1, createName:"", createErr:"",
+  createStats:null, createAnswers:null, createTemplate:null, importMsg:null,
+  scores:{Physical:0,Mental:0,Discipline:0,Intellect:0,Ambition:0,Relationship:0},
+  gainPrev:null,
+  tabAnim:null,
+};
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
+function lsG(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lsS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function getProfiles(){return lsG('arc_profiles')||[];}
+function saveProfiles(p){lsS('arc_profiles',p);}
+function loadArc(n){return lsG('arc_'+n+'_state');}
+function saveArc(n,a){lsS('arc_'+n+'_state',a);}
+function blankToday(){return {quests:{},boss:{},notes:"",appliedQuests:{},appliedBoss:{}};}
+function ensureToday(t){
+  t=t||blankToday();
+  if(!t.quests)t.quests={}; if(!t.boss)t.boss={}; if(typeof t.notes!=='string')t.notes=t.notes||"";
+  if(!t.appliedQuests)t.appliedQuests={}; if(!t.appliedBoss)t.appliedBoss={};
+  return t;
+}
+function loadToday(n){return ensureToday(lsG('arc_'+n+'_today')||blankToday());}
+function saveToday(n,t){lsS('arc_'+n+'_today',ensureToday(t));}
+function getActive(){return lsG('arc_active');}
+function setActive(n){lsS('arc_active',n);}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function getTier(lvl){return TIERS.filter(function(t){return lvl>=t.min&&lvl<=t.max;})[0]||TIERS[0];}
+function getPhase(day){return PHASES.filter(function(p){return day>=p.range[0]&&day<=p.range[1];})[0]||PHASES[3];}
+function xpNeeded(lvl){if(lvl<15)return 100;if(lvl<30)return 175;if(lvl<45)return 275;if(lvl<60)return 425;if(lvl<75)return 650;if(lvl<90)return 950;return 1400;}
+function dayRating(xp){
+  if(xp<30) return{label:"Lost Day",        color:"#6B7280",short:"LOST"};
+  if(xp<60) return{label:"Maintenance Day", color:"#38BDF8",short:"MAIN"};
+  if(xp<90) return{label:"Solid Day",       color:"#4ADE80",short:"SOLID"};
+  if(xp<120)return{label:"Strong Day",      color:"#FBBF24",short:"STR"};
+  return         {label:"Ascension Day",    color:"#FB923C",short:"ASC"};
+}
+function calcGain(score,val){
+  if(score<=2)return 0;
+  var raw=score===3?1:score===4?2:3;
+  if(val>=91)return Math.max(0,raw-2);
+  if(val>=76)return Math.max(0,raw-1);
+  return raw;
+}
+function makeArc(stats){
+  return{level:0,xp:0,totalXp:0,stats:cp(stats),dayNumber:1,history:[],weekReviews:[],
+    streak:0,bestStreak:0,lastDay:0,bossLog:[],mode:"school",
+    statLabels:cp(DEFAULT_LABELS),questLabels:{},bossLabels:{},bossDescs:{},questXp:{},bossXp:{},
+    customQuests:[],customBosses:[],theme:"nightmare"};
+}
+function cp(o){var r={};for(var k in o)r[k]=o[k];return r;}
+function sumObj(o){var s=0;for(var k in o)s+=o[k];return s;}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function num(n){return (n||0).toLocaleString();}
+
+// Label helper — returns custom label or default
+function lbl4(k){
+  if(S.arc&&S.arc.statLabels&&S.arc.statLabels[k])return esc(S.arc.statLabels[k]);
+  return k;
+}
+
+function makeDefaultAnswers(){var a={};STAT_KEYS.forEach(function(k){a[k]=[3,3,3,3,3];});return a;}
+function scoreFromAnswers(k){
+  var arr=(S.createAnswers&&S.createAnswers[k])?S.createAnswers[k]:[3,3,3,3,3];
+  var avg=arr.reduce(function(a,b){return a+b;},0)/arr.length;
+  return Math.round(20+((avg-1)/4)*70);
+}
+function refreshCreateStatsFromAnswers(){
+  if(!S.createStats)S.createStats=cp(NEUTRAL_STATS);
+  STAT_KEYS.forEach(function(k){S.createStats[k]=scoreFromAnswers(k);});
+}
+function totalFromLevelXp(lvl,xp){
+  var t=xp||0;
+  for(var i=0;i<(lvl||0);i++)t+=xpNeeded(i);
+  return t;
+}
+function xpStateFromTotal(total){
+  total=Math.max(0,total||0);
+  var lvl=0,xp=total;
+  while(xp>=xpNeeded(lvl)&&lvl<100){xp-=xpNeeded(lvl);lvl++;}
+  return {level:lvl,xp:xp};
+}
+function setArcTotalXp(arc,total){
+  arc=ensureArc(arc);
+  arc.totalXp=Math.max(0,total||0);
+  var st=xpStateFromTotal(arc.totalXp);
+  arc.level=st.level;arc.xp=st.xp;
+  return arc;
+}
+function ensureArc(a){
+  a=a||makeArc(NEUTRAL_STATS);
+  if(!a.stats)a.stats=cp(NEUTRAL_STATS);
+  if(typeof a.level!=='number')a.level=0; if(typeof a.xp!=='number')a.xp=0;
+  if(typeof a.totalXp!=='number')a.totalXp=totalFromLevelXp(a.level,a.xp);
+  if(!a.history)a.history=[]; if(!a.weekReviews)a.weekReviews=[]; if(!a.bossLog)a.bossLog=[];
+  if(!a.mode)a.mode="school"; if(!a.statLabels)a.statLabels=cp(DEFAULT_LABELS);
+  if(!a.questLabels)a.questLabels={}; if(!a.bossLabels)a.bossLabels={}; if(!a.bossDescs)a.bossDescs={};
+  if(!a.questXp)a.questXp={}; if(!a.bossXp)a.bossXp={};
+  if(!a.customQuests)a.customQuests=[]; if(!a.customBosses)a.customBosses=[];
+  if(!a.theme||!THEMES[a.theme])a.theme="nightmare";
+  return a;
+}
+function applyXpDelta(delta){
+  if(!S.arc||!S.profile)return {leveled:false,tierChanged:false};
+  var oldLevel=S.arc.level||0,oldTier=getTier(oldLevel).name;
+  var arc=ensureArc(cp(S.arc));
+  arc=setArcTotalXp(arc,(arc.totalXp||0)+delta);
+  S.arc=arc;saveArc(S.profile,arc);
+  var leveled=delta>0&&arc.level>oldLevel;
+  var tierChanged=leveled&&getTier(arc.level).name!==oldTier;
+  if(leveled)S.lvlUp={level:arc.level,tier:getTier(arc.level),tierChanged:tierChanged};
+  return {leveled:leveled,tierChanged:tierChanged};
+}
+function liveDayXp(){return sumObj((S.today&&S.today.quests)||{})+sumObj((S.today&&S.today.boss)||{});}
+function appliedDayXp(){return sumObj((S.today&&S.today.appliedQuests)||{})+sumObj((S.today&&S.today.appliedBoss)||{});}
+function rollbackTodayXp(){
+  S.today=ensureToday(S.today);
+  var applied=appliedDayXp();
+  if(applied>0)applyXpDelta(-applied);
+  S.today=blankToday();
+  saveToday(S.profile,S.today);
+}
+function syncTodayXp(){
+  S.today=ensureToday(S.today);
+  var aq=cp(S.today.appliedQuests||{}),ab=cp(S.today.appliedBoss||{});
+  var delta=0;
+  Object.keys(S.today.quests||{}).forEach(function(id){var xp=S.today.quests[id]||0;if(!aq[id]){aq[id]=xp;delta+=xp;}});
+  Object.keys(aq).forEach(function(id){if(!S.today.quests[id]){delta-=aq[id]||0;delete aq[id];}});
+  Object.keys(S.today.boss||{}).forEach(function(id){var xp=S.today.boss[id]||0;if(!ab[id]){ab[id]=xp;delta+=xp;}});
+  Object.keys(ab).forEach(function(id){if(!S.today.boss[id]){delta-=ab[id]||0;delete ab[id];}});
+  S.today.appliedQuests=aq;S.today.appliedBoss=ab;
+  if(delta!==0)applyXpDelta(delta);
+  saveToday(S.profile,S.today);
+}
+function baseQuests(mode){return mode==="summer"?SUMMER_QUESTS:SCHOOL_QUESTS;}
+function baseBosses(mode){return mode==="summer"?SUMMER_BOSSES:SCHOOL_BOSSES;}
+function qDisplay(q){
+  var r=cp(q); r.custom=!!q.custom;
+  if(S.arc&&S.arc.questLabels&&S.arc.questLabels[q.id])r.label=S.arc.questLabels[q.id];
+  if(S.arc&&S.arc.questXp&&S.arc.questXp[q.id])r.xp=parseInt(S.arc.questXp[q.id])||q.xp;
+  return r;
+}
+function bDisplay(b){
+  var r=cp(b); r.custom=!!b.custom;
+  if(S.arc&&S.arc.bossLabels&&S.arc.bossLabels[b.id])r.label=S.arc.bossLabels[b.id];
+  if(S.arc&&S.arc.bossDescs&&S.arc.bossDescs[b.id])r.desc=S.arc.bossDescs[b.id];
+  if(S.arc&&S.arc.bossXp&&S.arc.bossXp[b.id])r.xp=parseInt(S.arc.bossXp[b.id])||b.xp;
+  if(!r.icon)r.icon=r.stat?STAT_META[r.stat].icon:"★";
+  return r;
+}
+function getQuests(mode){
+  mode=mode||((S.arc&&S.arc.mode)||"school");
+  var out=baseQuests(mode).map(qDisplay);
+  if(S.arc&&S.arc.customQuests){S.arc.customQuests.filter(function(q){return q.mode===mode;}).forEach(function(q){out.push(qDisplay(q));});}
+  return out;
+}
+function getBosses(mode){
+  mode=mode||((S.arc&&S.arc.mode)||"school");
+  var out=baseBosses(mode).map(bDisplay);
+  if(S.arc&&S.arc.customBosses){S.arc.customBosses.filter(function(b){return b.mode===mode;}).forEach(function(b){out.push(bDisplay(b));});}
+  return out;
+}
+function getAllBosses(){return getBosses("school").concat(getBosses("summer"));}
+function makeId(prefix){return prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function statOptions(sel){
+  return STAT_KEYS.map(function(k){return '<option value="'+k+'" '+(sel===k?'selected':'')+'>'+esc((S.arc&&S.arc.statLabels&&S.arc.statLabels[k])?S.arc.statLabels[k]:k)+'</option>';}).join('');
+}
+function encData(obj){return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function decData(str){
+  str=(str||'').trim();
+  if(str.indexOf('#arc=')>=0)str=str.split('#arc=')[1];
+  if(str.indexOf('arc=')>=0)str=str.split('arc=')[1];
+  str=str.split('&')[0].replace(/-/g,'+').replace(/_/g,'/');
+  while(str.length%4)str+='=';
+  return JSON.parse(decodeURIComponent(escape(atob(str))));
+}
+function buildShareLink(){
+  var base=String(location.href).split('#')[0];
+  var payload={v:2,profile:S.profile,arc:S.arc,today:S.today};
+  return base+'#arc='+encData(payload);
+}
+function buildQuestionnaireLink(){
+  var base=String(location.href).split('#')[0];
+  var a=ensureArc(S.arc);
+  var template={mode:a.mode,statLabels:a.statLabels,questLabels:a.questLabels,bossLabels:a.bossLabels,bossDescs:a.bossDescs,questXp:a.questXp,bossXp:a.bossXp,customQuests:a.customQuests,customBosses:a.customBosses,theme:a.theme};
+  var payload={v:3,type:"questionnaire",profile:S.profile||"",template:template};
+  return base+'#starter='+encData(payload);
+}
+function applyCreateTemplate(arc){
+  if(!S.createTemplate)return arc;
+  var t=S.createTemplate;
+  arc=ensureArc(arc);
+  if(t.mode)arc.mode=t.mode;
+  arc.statLabels=t.statLabels?cp(t.statLabels):arc.statLabels;
+  arc.questLabels=t.questLabels?cp(t.questLabels):{};
+  arc.bossLabels=t.bossLabels?cp(t.bossLabels):{};
+  arc.bossDescs=t.bossDescs?cp(t.bossDescs):{};
+  arc.questXp=t.questXp?cp(t.questXp):{};
+  arc.bossXp=t.bossXp?cp(t.bossXp):{};
+  arc.customQuests=(t.customQuests||[]).map(function(q){return cp(q);});
+  arc.customBosses=(t.customBosses||[]).map(function(b){return cp(b);});
+  if(t.theme&&THEMES[t.theme])arc.theme=t.theme;
+  return arc;
+}
+function importStarterFromHash(){
+  try{
+    var h=String(location.hash||'');
+    if(h.indexOf('starter=')<0)return false;
+    var payload=decData(h.replace('#starter=','arc='));
+    S.profile=null;S.arc=null;S.today=blankToday();
+    S.creating=true;S.createErr="";S.createAnswers=makeDefaultAnswers();S.createStats=cp(NEUTRAL_STATS);
+    S.createTemplate=payload.template||null;
+    var nm=uniqueProfileName(payload.profile||'');
+    S.createName=nm==='SHARED'?"":nm;
+    S.createStep=S.createName?2:1;
+    S.importMsg="Questionnaire loaded. Answer honestly, then begin your arc.";
+    if(history&&history.replaceState)history.replaceState(null,'',String(location.href).split('#')[0]);
+    return true;
+  }catch(e){S.importMsg="Could not open questionnaire link.";return false;}
+}
+function uniqueProfileName(name){
+  name=(name||'SHARED').trim().toUpperCase().slice(0,20)||'SHARED';
+  return name;
+}
+function importPayload(payload){
+  if(!payload||!payload.arc)return false;
+  var name=uniqueProfileName(payload.profile||'SHARED');
+  var profiles=getProfiles();
+  if(profiles.indexOf(name)<0){profiles.push(name);saveProfiles(profiles);} 
+  var arc=ensureArc(payload.arc); saveArc(name,arc);
+  saveToday(name,payload.today||{quests:{},boss:{},notes:""});
+  S.profiles=profiles;S.profile=name;setActive(name);S.arc=arc;S.today=loadToday(name);syncTodayXp();S.tab="profile";
+  S.importMsg="Imported shared profile: "+name;
+  return true;
+}
+function importFromHash(){
+  try{
+    var h=String(location.hash||'');
+    if(h.indexOf('arc=')<0)return false;
+    var ok=importPayload(decData(h));
+    if(ok&&history&&history.replaceState)history.replaceState(null,'',String(location.href).split('#')[0]);
+    return ok;
+  }catch(e){S.importMsg="Could not import shared profile link.";return false;}
+}
+function copyText(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){showToast("Share link copied.","#4ADE80");}).catch(function(){fallbackCopy(txt);});}
+  else fallbackCopy(txt);
+}
+function fallbackCopy(txt){var t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();try{document.execCommand('copy');showToast("Share link copied.","#4ADE80");}catch(e){showToast("Copy failed. Select the link manually.","#FBBF24");}document.body.removeChild(t);}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg,color){
+  if(S.toastTimer)clearTimeout(S.toastTimer);
+  S.toast={msg:msg,color:color||"#8B5CF6"};
+  var el=document.getElementById('ts');
+  if(el)el.innerHTML=toastHtml();
+  S.toastTimer=setTimeout(function(){S.toast=null;var e=document.getElementById('ts');if(e)e.innerHTML='';},3000);
+}
+function toastHtml(){
+  if(!S.toast)return'';
+  return '<div style="position:fixed;top:14px;left:50%;transform:translateX(-50%);background:'+S.toast.color+'20;border:1px solid '+S.toast.color+'55;border-radius:4px;padding:9px 18px;font-size:10px;color:'+S.toast.color+';z-index:999;animation:slideUp .25s ease;white-space:nowrap;letter-spacing:1px;">'+esc(S.toast.msg)+'</div>';
+}
+
+// ─── STYLE CONSTANTS ──────────────────────────────────────────────────────────
+var DIM='rgba(255,255,255,0.18)';
+var PANEL='rgba(255,255,255,0.028)';
+var EDGE='rgba(255,255,255,0.07)';
+var MUTED='rgba(255,255,255,0.35)';
+function theme(){var id=(S.arc&&S.arc.theme&&THEMES[S.arc.theme])?S.arc.theme:'nightmare';return THEMES[id];}
+function applyThemeGlobals(){
+  var t=theme();
+  DIM=t.dim;PANEL=t.panel;EDGE=t.edge;MUTED=t.muted;
+  var r=document.documentElement.style;
+  r.setProperty('--bg',t.bg);r.setProperty('--panel',t.panel);r.setProperty('--edge',t.edge);r.setProperty('--accent',t.accent);
+}
+function slbl(t){return '<div style="font-size:8px;letter-spacing:4px;color:'+DIM+';margin-bottom:12px;">'+t+'</div>';}
+function card(c,ex){return '<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:8px;margin:10px 14px 0;padding:16px;'+(ex||'')+'">'+c+'</div>';}
+function codexSection(key,title,sub,accent,inner,open){
+  return '<details class="codexBox" '+(open?'open':'')+'><summary><div style="pointer-events:none;"><div style="font-size:10px;font-weight:700;letter-spacing:2.5px;color:'+accent+';">'+title+'</div>'+(sub?'<div style="font-size:8.5px;color:'+DIM+';line-height:1.5;margin-top:4px;">'+sub+'</div>':'')+'</div><div class="chev" style="pointer-events:none;font-size:16px;">›</div></summary><div class="codexBody">'+inner+'</div></details>';
+}
+
+// ─── RADAR ────────────────────────────────────────────────────────────────────
+function buildRadar(stats){
+  var cx=130,cy=130,r=95,n=STAT_KEYS.length;
+  function pt(i,val){var a=(Math.PI*2*i)/n-Math.PI/2;return[cx+(val/100)*r*Math.cos(a),cy+(val/100)*r*Math.sin(a)];}
+  function mkp(pts){return pts.map(function(p,i){return(i===0?'M':'L')+p[0]+','+p[1];}).join('')+'Z';}
+  var rings=[20,40,60,80,100].map(function(v){return mkp(STAT_KEYS.map(function(_,i){return pt(i,v);}));});
+  var area=mkp(STAT_KEYS.map(function(k,i){return pt(i,stats[k]);}));
+  var tgt=mkp(STAT_KEYS.map(function(k,i){return pt(i,STAT_META[k].target);}));
+  var svg='<svg viewBox="0 0 260 260" style="width:100%;max-width:260px;">';
+  rings.forEach(function(d){svg+='<path d="'+d+'" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>';});
+  STAT_KEYS.forEach(function(_,i){var e=pt(i,100);svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+e[0]+'" y2="'+e[1]+'" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>';});
+  svg+='<path d="'+tgt+'" fill="rgba(251,191,36,0.06)" stroke="rgba(251,191,36,0.35)" stroke-width="1.5" stroke-dasharray="5,3"/>';
+  svg+='<path d="'+area+'" fill="rgba(139,92,246,0.18)" stroke="rgba(139,92,246,0.75)" stroke-width="2"/>';
+  STAT_KEYS.forEach(function(k,i){var p=pt(i,stats[k]);svg+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="4.5" fill="'+STAT_META[k].color+'" stroke="#0a0a0f" stroke-width="1.5"/>';});
+  STAT_KEYS.forEach(function(k,i){
+    var p=pt(i,115);
+    // use up to 4 chars of custom label for radar
+    var short=(S.arc&&S.arc.statLabels&&S.arc.statLabels[k]?S.arc.statLabels[k]:k).slice(0,4).toUpperCase();
+    svg+='<text x="'+p[0]+'" y="'+p[1]+'" text-anchor="middle" dominant-baseline="middle" fill="'+STAT_META[k].color+'" font-size="8.5" font-family="IBM Plex Mono,monospace" font-weight="700" letter-spacing="1">'+esc(short)+'</text>';
+  });
+  svg+='</svg>';
+  return svg;
+}
+
+// ─── PROFILE SELECT ───────────────────────────────────────────────────────────
+function renderSelect(){
+  if(S.creating)return renderCreate();
+  var cards='';
+  S.profiles.forEach(function(name,i){
+    var col=PCOLS[i%PCOLS.length];
+    var st=loadArc(name);
+    var tier=st?getTier(st.level):TIERS[0];
+    var sub=st?'LVL '+st.level+' · '+tier.name.toUpperCase()+' · Day '+st.dayNumber:'New profile';
+    cards+='<div class="crd" data-a="pick" data-name="'+esc(name)+'" style="background:rgba(255,255,255,0.04);border:1px solid '+col+'33;border-radius:8px;padding:18px 20px;margin-bottom:10px;display:flex;align-items:center;gap:16px;">'
+      +'<div style="width:44px;height:44px;border-radius:50%;background:'+col+'22;border:2px solid '+col+'66;display:flex;align-items:center;justify-content:center;flex-shrink:0;pointer-events:none;"><span style="font-size:16px;font-weight:700;color:'+col+';">'+esc(name.slice(0,2))+'</span></div>'
+      +'<div style="flex:1;pointer-events:none;"><div style="font-size:13px;font-weight:700;color:#E2E8F0;letter-spacing:2px;">'+esc(name)+'</div><div style="font-size:8.5px;color:rgba(255,255,255,0.3);margin-top:3px;letter-spacing:1px;">'+sub+'</div></div>'
+      +'<div style="font-size:20px;color:'+col+';opacity:0.6;pointer-events:none;">›</div>'
+      +'</div>';
+  });
+  var empty=S.profiles.length===0?'<div style="text-align:center;padding:40px 0;color:rgba(255,255,255,0.2);font-size:11px;letter-spacing:1px;">No profiles yet.<br/>Create one to begin.</div>':'';
+  return '<div style="min-height:100vh;background:#080810;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;" class="fade">'
+    +'<div style="width:100%;max-width:380px;">'
+    +'<div style="text-align:center;margin-bottom:36px;">'
+    +'<div style="font-family:\'Cinzel Decorative\',serif;font-size:24px;color:#E2E8F0;letter-spacing:4px;margin-bottom:8px;">ASCENSION ARC</div>'
+    +'<div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:3px;">SELECT YOUR PROFILE</div>'
+    +'</div>'
+    +empty+cards
+    +'<div class="crd" data-a="startCreate" style="background:rgba(139,92,246,0.08);border:1px dashed rgba(139,92,246,0.4);border-radius:8px;padding:18px 20px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:4px;">'
+    +'<span style="font-size:22px;color:#A78BFA;pointer-events:none;">+</span>'
+    +'<span style="font-size:10px;color:#A78BFA;letter-spacing:3px;font-weight:700;pointer-events:none;">NEW PROFILE</span>'
+    +'</div></div></div>';
+}
+
+function renderCreate(){
+  if(S.createStep===1){
+    return '<div style="min-height:100vh;background:#080810;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;" class="fade">'
+      +'<div style="width:100%;max-width:380px;">'
+      +'<div style="text-align:center;margin-bottom:28px;">'
+      +'<div style="font-family:\'Cinzel Decorative\',serif;font-size:18px;color:#E2E8F0;letter-spacing:3px;margin-bottom:6px;">CREATE PROFILE</div>'
+      +'<div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:3px;">STEP 1 OF 2 — NAME</div></div>'
+      +'<input id="cname" type="text" value="'+esc(S.createName)+'" placeholder="Your name..." maxlength="20" '
+      +'style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#E2E8F0;font-size:20px;font-family:\'IBM Plex Mono\',monospace;padding:14px 16px;letter-spacing:2px;margin-bottom:8px;text-transform:uppercase;"/>'
+      +(S.createErr?'<div style="font-size:9px;color:#F87171;margin-bottom:10px;letter-spacing:1px;">'+esc(S.createErr)+'</div>':'')
+      +'<div style="display:flex;gap:8px;margin-top:12px;">'
+      +'<button data-a="cancelCreate" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.4);padding:14px;font-size:10px;letter-spacing:3px;">BACK</button>'
+      +'<button data-a="step2" style="flex:2;background:linear-gradient(135deg,#7C3AED,#4C1D95);border:1px solid rgba(139,92,246,0.5);border-radius:6px;color:#E2E8F0;padding:14px;font-size:10px;letter-spacing:3px;font-weight:700;">NEXT →</button>'
+      +'</div></div></div>';
+  }
+  // Step 2: questionnaire-based stat scoring
+  if(!S.createAnswers)S.createAnswers=makeDefaultAnswers();
+  if(!S.createStats)refreshCreateStatsFromAnswers();
+  var qCards='';
+  STAT_KEYS.forEach(function(k){
+    var m=STAT_META[k],questions=STAT_QUESTIONS[k],score=S.createStats[k];
+    var rows='';
+    questions.forEach(function(q,idx){
+      var cur=S.createAnswers[k][idx];
+      var nums='';
+      for(var v=1;v<=5;v++){
+        nums+='<button data-a="ans" data-key="'+k+'" data-idx="'+idx+'" data-val="'+v+'" '
+          +'style="width:26px;height:26px;border-radius:4px;border:1px solid '+(cur===v?m.color:'rgba(255,255,255,0.10)')+';background:'+(cur===v?m.color+'22':'rgba(255,255,255,0.03)')+';color:'+(cur===v?m.color:DIM)+';font-size:10px;font-weight:700;">'+v+'</button>';
+      }
+      rows+='<div style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        +'<div style="font-size:9.5px;color:#E2E8F0;line-height:1.45;margin-bottom:7px;">'+esc(q)+'</div>'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">'
+        +'<span style="font-size:7px;color:'+DIM+';letter-spacing:1px;">WEAK</span><div style="display:flex;gap:4px;">'+nums+'</div><span style="font-size:7px;color:'+DIM+';letter-spacing:1px;">STRONG</span>'
+        +'</div></div>';
+    });
+    qCards+='<div style="background:'+PANEL+';border:1px solid '+m.color+'22;border-radius:6px;margin-bottom:12px;padding:14px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+      +'<div style="font-size:10px;color:'+m.color+';font-weight:700;letter-spacing:1.5px;">'+m.icon+' '+k.toUpperCase()+'</div>'
+      +'<div style="font-size:20px;color:#E2E8F0;font-weight:700;">'+score+'</div>'
+      +'</div>'
+      +rows
+      +'<div style="margin-top:10px;">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:8px;color:'+DIM+';">Manual fine-tune</span><span id="sv-'+k+'" style="font-size:9px;color:'+m.color+';font-weight:700;">'+score+'</span></div>'
+      +'<input type="range" min="20" max="90" value="'+score+'" data-sl="'+k+'"/>'
+      +'</div></div>';
+  });
+  return '<div style="min-height:100vh;background:#080810;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;overflow-y:auto;" class="fade">'
+    +'<div style="width:100%;max-width:430px;padding-top:16px;">'
+    +'<div style="text-align:center;margin-bottom:18px;">'
+    +'<div style="font-family:\'Cinzel Decorative\',serif;font-size:16px;color:#E2E8F0;letter-spacing:3px;margin-bottom:4px;">'+esc(S.createName)+'</div>'
+    +'<div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:3px;">STEP 2 OF 2 — QUESTIONNAIRE STATS</div></div>'
+    +'<div style="font-size:9px;color:rgba(255,255,255,0.35);line-height:1.7;margin-bottom:14px;text-align:center;">Answer 1–5 honestly. The app converts each category into a starting stat, then you can fine-tune the slider.</div>'
+    +(S.createTemplate?'<div style="font-size:8.5px;color:#A78BFA;line-height:1.5;text-align:center;margin:-6px 0 14px;">Shared quest/stat template loaded. Your answers create your own profile.</div>':'')
+    +'<div style="display:flex;gap:8px;margin-bottom:14px;">'
+    +'<button data-a="presetAman" style="flex:1;background:rgba(251,146,60,0.08);border:1px solid rgba(251,146,60,0.35);border-radius:6px;color:#FB923C;padding:10px;font-size:8px;letter-spacing:1.5px;">AMAN PRESET</button>'
+    +'<button data-a="presetNeutral" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.4);padding:10px;font-size:8px;letter-spacing:1.5px;">RESET TO 50</button>'
+    +'</div>'
+    +qCards
+    +'<div style="display:flex;gap:8px;margin-top:8px;margin-bottom:20px;">'
+    +'<button data-a="back1" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.4);padding:14px;font-size:10px;letter-spacing:3px;">BACK</button>'
+    +'<button data-a="finish" style="flex:2;background:linear-gradient(135deg,#7C3AED,#4C1D95);border:1px solid rgba(139,92,246,0.5);border-radius:6px;color:#E2E8F0;padding:14px;font-size:10px;letter-spacing:3px;font-weight:700;">BEGIN ARC ✦</button>'
+    +'</div></div></div>';
+}
+
+// ─── APP SHELL ────────────────────────────────────────────────────────────────
+function renderApp(){
+  var arc=S.arc;
+  var isSummer=arc.mode==="summer";
+  var tier=getTier(arc.level);
+  var xpNeed=xpNeeded(arc.level);
+  var xpPct=Math.min(100,(arc.xp/xpNeed)*100);
+  var statAvg=Math.round(STAT_KEYS.reduce(function(a,k){return a+arc.stats[k];},0)/6);
+  var daysLeft=Math.max(0,61-arc.dayNumber);
+  var streak=arc.streak||0;
+  var sc=streak>=7?"#FB923C":streak>=3?"#FBBF24":"#E2E8F0";
+  var th=theme();
+
+  var header='<div style="background:'+th.header+';border-bottom:1px solid '+tier.color+'28;padding:12px 16px 10px;position:sticky;top:0;z-index:10;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+    +'<div><div style="font-family:\'Cinzel Decorative\',serif;font-size:14px;font-weight:900;letter-spacing:3px;color:#E2E8F0;line-height:1;">'+esc(S.profile)+'</div>'
+    +'<div style="font-size:7px;color:'+DIM+';letter-spacing:2px;margin-top:3px;">'+th.icon+' '+th.tag+' · SCHOLAR-WARRIOR</div></div>'
+    +'<div style="display:flex;gap:10px;align-items:center;">'
+    +'<div style="text-align:center;"><div style="font-size:18px;font-weight:700;line-height:1;color:'+sc+';">'+streak+'</div><div style="font-size:7px;color:'+DIM+';letter-spacing:1.5px;">STREAK</div></div>'
+    +'<div style="text-align:right;">'
+    +'<div style="display:inline-block;padding:3px 9px;border-radius:2px;background:'+tier.color+'18;border:1px solid '+tier.color+'55;color:'+tier.color+';font-size:8px;letter-spacing:3px;font-weight:700;">'+tier.name.toUpperCase()+'</div>'
+    +'<div style="font-size:9.5px;color:'+MUTED+';margin-top:4px;">LVL <span style="color:#E2E8F0;font-weight:700;">'+arc.level+'</span><span style="color:'+DIM+';font-size:7.5px;"> · D'+arc.dayNumber+'</span></div>'
+    +'</div></div></div>'
+    +'<div style="height:3px;background:rgba(255,255,255,0.07);border-radius:2px;margin-top:10px;overflow:hidden;">'
+    +'<div style="height:100%;width:'+xpPct+'%;background:linear-gradient(90deg,'+tier.color+',#8B5CF6);border-radius:2px;transition:width .7s ease;"></div></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:4px;">'
+    +'<span style="font-size:7.5px;color:'+DIM+';">'+arc.xp+'/'+xpNeed+' XP</span>'
+    +'<span class="crd" data-a="logout" style="font-size:7.5px;color:'+DIM+';">AVG '+statAvg+' · '+daysLeft+'d left · ⇄ profiles</span>'
+    +'</div></div>';
+
+  var TABS=[{id:"profile",label:"HOME",icon:"◈"},{id:"quests",label:"QUESTS",icon:"⊕"},{id:"boss",label:"BOSS",icon:"★"},{id:"weekly",label:"REVIEW",icon:"↺"},{id:"codex",label:"CODEX",icon:"≡"}];
+  var hasDot=Object.keys(S.today.boss).length>0;
+  var nav='<div style="position:fixed;bottom:0;left:0;right:0;background:'+th.nav+';border-top:1px solid rgba(139,92,246,0.22);display:flex;z-index:10;">'
+    +TABS.map(function(t){
+      var active=S.tab===t.id;
+      var dot=t.id==="boss"&&hasDot?'<div style="position:absolute;top:6px;right:calc(50% - 12px);width:5px;height:5px;border-radius:50%;background:#FBBF24;pointer-events:none;"></div>':'';
+      return '<button data-a="tab" data-tab="'+t.id+'" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px 7px;background:none;border:none;color:'+(active?th.accent:"rgba(255,255,255,0.25)")+';font-size:7px;letter-spacing:1px;position:relative;">'+dot+'<span style="font-size:18px;line-height:1;pointer-events:none;">'+t.icon+'</span>'+t.label+'</button>';
+    }).join('')
+    +'</div>';
+
+  var tabHtml='';
+  if(S.tab==="profile")tabHtml=renderProfileTab();
+  else if(S.tab==="quests")tabHtml=renderQuestsTab();
+  else if(S.tab==="boss")tabHtml=renderBossTab();
+  else if(S.tab==="weekly")tabHtml=renderWeeklyTab();
+  else if(S.tab==="codex")tabHtml=renderCodexTab();
+
+  // Mode modal rendered OUTSIDE app div so it covers everything cleanly
+  var modal=S.modeModal?renderModeModal(isSummer):'';
+  var lvlHtml=S.lvlUp?renderLvlUp():'';
+
+  return '<div style="background:radial-gradient(circle at 50% -20%,'+th.bg2+' 0%,'+th.bg+' 48%,#05050a 100%);min-height:100vh;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace;padding-bottom:68px;">'
+    +'<div id="ts">'+toastHtml()+'</div>'
+    +lvlHtml+modal+header
+    +'<div class="'+(S.tabAnim||'su')+'">'+tabHtml+'</div>'
+    +nav+'</div>';
+}
+
+// ─── MODE MODAL (fixed: separate backdrop, no stopPropagation needed) ─────────
+function renderModeModal(isSummer){
+  // Two-layer approach: opaque backdrop div + centered content div, no event conflicts
+  var backdrop='<div data-a="closeMode" style="position:fixed;inset:0;z-index:48;background:rgba(0,0,0,0.82);"></div>';
+  var modes=[
+    {id:"school", label:"SCHOOL MODE", icon:"📚", col:"#38BDF8", desc:"Law, chess, legal writing · Career applications · Exam discipline"},
+    {id:"summer", label:"SUMMER MODE", icon:"☀️",  col:"#FB923C", desc:"Books, writing · Job performance + saving · Water goals + social time"},
+  ];
+  var btns=modes.map(function(m){
+    var active=S.arc.mode===m.id;
+    return '<div class="crd" data-a="switchMode" data-mode="'+m.id+'" style="background:'+(active?m.col+'15':PANEL)+';border:2px solid '+(active?m.col:'rgba(255,255,255,0.1)')+';border-radius:8px;padding:16px;margin-bottom:12px;">'
+      +'<div style="display:flex;align-items:center;gap:12px;pointer-events:none;">'
+      +'<span style="font-size:28px;line-height:1;">'+m.icon+'</span>'
+      +'<div style="flex:1;">'
+      +'<div style="font-size:11px;font-weight:700;color:'+(active?m.col:"#E2E8F0")+';letter-spacing:1.5px;margin-bottom:4px;">'+m.label+'</div>'
+      +'<div style="font-size:9px;color:'+DIM+';line-height:1.5;">'+m.desc+'</div>'
+      +'</div>'
+      +(active?'<div style="font-size:8px;color:'+m.col+';border:1px solid '+m.col+'55;padding:3px 8px;border-radius:3px;flex-shrink:0;">ACTIVE</div>':'<div style="font-size:8px;color:'+DIM+';border:1px solid rgba(255,255,255,0.1);padding:3px 8px;border-radius:3px;flex-shrink:0;">SELECT</div>')
+      +'</div></div>';
+  }).join('');
+  var content='<div style="position:fixed;inset:0;z-index:49;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none;">'
+    +'<div style="background:#111118;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:24px;width:100%;max-width:360px;pointer-events:all;">'
+    +'<div style="font-size:8px;letter-spacing:4px;color:'+DIM+';margin-bottom:6px;">SWITCH SEASON</div>'
+    +'<div style="font-size:10px;color:'+MUTED+';line-height:1.7;margin-bottom:20px;">XP, level, stats and history all carry over. Only the quest and boss lists change to match the season.</div>'
+    +btns
+    +'<button data-a="closeMode" style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.4);padding:11px;font-size:9px;letter-spacing:3px;margin-top:4px;">CANCEL</button>'
+    +'</div></div>';
+  return backdrop+content;
+}
+
+function renderLvlUp(){
+  var t=S.lvlUp.tier;
+  return '<div data-a="closeLvl" style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">'
+    +'<div style="font-size:56px;animation:popIn .45s ease;">✦</div>'
+    +'<div style="font-family:\'Cinzel Decorative\',serif;font-size:20px;color:'+t.color+';letter-spacing:5px;animation:popIn .55s ease;">LEVEL UP</div>'
+    +'<div style="font-size:38px;font-weight:700;color:#E2E8F0;animation:popIn .65s ease;">LVL '+S.lvlUp.level+'</div>'
+    +(S.lvlUp.tierChanged?'<div style="padding:4px 16px;border:1px solid '+t.color+';border-radius:3px;color:'+t.color+';font-size:10px;letter-spacing:4px;animation:popIn .75s ease;">'+t.name.toUpperCase()+' UNLOCKED</div>':'')
+    +'<div style="font-size:9px;color:'+DIM+';margin-top:16px;letter-spacing:2px;">tap to continue</div>'
+    +'</div>';
+}
+
+// ─── PROFILE TAB ──────────────────────────────────────────────────────────────
+function themeHomeCard(){
+  var th=theme();
+  return '<div class="themeGlow" style="background:linear-gradient(135deg,'+th.accent+'12,'+th.accent2+'0f);border:1px solid '+th.accent+'33;border-radius:10px;margin:10px 14px 0;padding:14px 16px;display:flex;align-items:center;gap:12px;">'
+    +'<div style="width:38px;height:38px;border-radius:50%;background:'+th.accent+'18;border:1px solid '+th.accent+'55;display:flex;align-items:center;justify-content:center;color:'+th.accent+';font-size:20px;flex-shrink:0;">'+th.icon+'</div>'
+    +'<div style="flex:1;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:'+th.accent+';">'+th.name.toUpperCase()+'</div><div style="font-size:8.5px;color:'+MUTED+';line-height:1.5;margin-top:3px;">'+th.desc+' Same ascension ladder. Personal interface skin.</div></div>'
+    +'</div>';
+}
+function renderProfileTab(){
+  var arc=S.arc;
+  var isSummer=arc.mode==="summer";
+  var mc=isSummer?"#FB923C":"#38BDF8";
+  var phase=getPhase(arc.dayNumber);
+  var streak=arc.streak||0;
+
+  // Big obvious mode toggle
+  var modeToggle='<div style="margin:14px 14px 0;">'
+    +'<div style="display:flex;gap:8px;">'
+    +[{id:"school",label:"📚 SCHOOL",col:"#38BDF8"},{id:"summer",label:"☀️ SUMMER",col:"#FB923C"}].map(function(m){
+      var active=arc.mode===m.id;
+      return '<div class="crd" data-a="quickMode" data-mode="'+m.id+'" style="flex:1;padding:12px;border-radius:6px;text-align:center;background:'+(active?m.col+'18':"rgba(255,255,255,0.04)")+';border:2px solid '+(active?m.col:'rgba(255,255,255,0.08)')+';color:'+(active?m.col:'rgba(255,255,255,0.35)')+';font-size:10px;font-weight:700;letter-spacing:1px;">'
+        +m.label+'</div>';
+    }).join('')
+    +'</div>'
+    +'<div style="font-size:8.5px;color:'+DIM+';text-align:center;margin-top:8px;">'
+    +(isSummer?"☀️ Summer Arc — Jun to Aug 7 · Working, reading, building the body":"📚 School Arc · Law school focus, intellect and ambition carry the build")
+    +'</div></div>';
+
+  // Streak
+  var sc2=streak>=7?"#FB923C":streak>=3?"#FBBF24":"#FBBF24";
+  var sbars='';
+  for(var i=0;i<14;i++){var on=streak>i;sbars+='<div style="flex:1;height:20px;border-radius:2px;background:'+(on?sc2:"rgba(255,255,255,0.06)")+';border:1px solid '+(on?sc2+"66":"rgba(255,255,255,0.07)")+';transition:background .3s;"></div>';}
+  var stxt=!streak?"Start your streak — commit today.":streak>=14?"Two-week streak. Legendary.":streak>=7?streak+" days straight. Don't stop.":streak+" day streak. Keep ascending.";
+  var streakCard=card(slbl("STREAK")+'<div style="display:flex;justify-content:flex-end;margin-bottom:10px;margin-top:-6px;"><div style="font-size:8px;color:'+DIM+';">BEST: <span style="color:#FBBF24;">'+(arc.bestStreak||0)+'</span></div></div>'
+    +'<div style="display:flex;gap:3px;">'+sbars+'</div><div style="font-size:8px;color:'+DIM+';margin-top:6px;text-align:center;">'+stxt+'</div>');
+
+  // Radar
+  var radarCard='<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:4px;margin:10px 14px 0;padding:16px;display:flex;flex-direction:column;align-items:center;">'
+    +slbl("ASCENSION PROFILE")+buildRadar(arc.stats)
+    +'<div style="display:flex;gap:16px;margin-top:4px;"><span style="font-size:8px;color:rgba(251,191,36,0.6);">— — 60d target</span><span style="font-size:8px;color:rgba(139,92,246,0.7);">—— current</span></div>'
+    +'</div>';
+
+  // Stat bars with custom labels
+  var statBars='';
+  STAT_KEYS.forEach(function(k){
+    var v=arc.stats[k],m=STAT_META[k],gap=m.target-v;
+    statBars+='<div style="margin-bottom:13px;">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:5px;">'
+      +'<span style="font-size:9px;color:'+m.color+';font-weight:700;letter-spacing:1.5px;">'+m.icon+' '+lbl4(k)+'</span>'
+      +'<span style="font-size:9px;color:'+MUTED+';"><span style="color:#E2E8F0;font-weight:700;">'+v+'</span><span style="color:'+DIM+';"> → '+m.target+'</span>'
+      +'<span style="color:'+(gap>0?"#EF4444":"#4ADE80")+';margin-left:4px;font-size:8px;">'+(gap>0?'-'+gap:'+'+Math.abs(gap))+'</span></span>'
+      +'</div>'
+      +'<div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;position:relative;">'
+      +'<div style="position:absolute;left:'+m.target+'%;top:0;bottom:0;width:1.5px;background:rgba(251,191,36,0.4);"></div>'
+      +'<div style="height:100%;width:'+v+'%;background:'+m.color+';border-radius:3px;transition:width .7s ease;"></div>'
+      +'</div></div>';
+  });
+
+  // Phase
+  var phaseBars='';
+  PHASES.forEach(function(p){var a=phase===p,d=arc.dayNumber>p.range[1];phaseBars+='<div style="flex:1;height:3px;border-radius:2px;background:'+(d?"#4ADE8066":a?"#A78BFA":"rgba(255,255,255,0.08)")+';"></div>';});
+  var phaseCard='<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:4px;margin:10px 14px 0;padding:14px;">'
+    +slbl("CURRENT PHASE")
+    +'<div style="font-size:13px;font-weight:700;color:#A78BFA;letter-spacing:1px;">'+phase.name+'</div>'
+    +'<div style="font-size:10px;color:'+MUTED+';margin-top:4px;font-style:italic;">"'+phase.q+'"</div>'
+    +'<div style="display:flex;gap:3px;margin-top:12px;">'+phaseBars+'</div></div>';
+
+  // 7-day chart
+  var chartCard='';
+  if(arc.history.length>0){
+    var last7=arc.history.slice(-7);
+    var bars='';
+    last7.forEach(function(h){var r=dayRating(h.xp),pct=Math.min(100,(h.xp/160)*100);bars+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><div style="width:100%;background:'+r.color+'44;border-radius:2px 2px 0 0;height:'+pct+'%;min-height:4px;border:1px solid '+r.color+'66;"></div><span style="font-size:7px;color:'+DIM+';">'+h.day+'</span></div>';});
+    chartCard=card(slbl("LAST 7 DAYS")+'<div style="display:flex;gap:4px;align-items:flex-end;height:56px;">'+bars+'</div>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:10px;font-size:8.5px;"><span style="color:'+DIM+';">Total XP: <span style="color:#A78BFA;">'+num(arc.totalXp)+'</span></span><span style="color:'+DIM+';">Reviews: <span style="color:#4ADE80;">'+(arc.weekReviews||[]).length+'</span></span></div>');
+  }
+
+  return modeToggle+themeHomeCard()+streakCard+radarCard+card(slbl("CORE STATS")+statBars)+phaseCard+chartCard+'<div style="height:8px;"></div>';
+}
+
+// ─── QUESTS TAB ───────────────────────────────────────────────────────────────
+function renderQuestsTab(){
+  var arc=S.arc,isSummer=arc.mode==="summer";
+  var QUESTS=getQuests(arc.mode);
+  var mc=isSummer?"#FB923C":"#38BDF8",ml=isSummer?"☀️ SUMMER":"📚 SCHOOL";
+  var todayXp=sumObj(S.today.quests)+sumObj(S.today.boss);
+  var r=dayRating(todayXp);
+  var qc=Object.keys(S.today.quests).length;
+
+  var banner='<div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.3);border-radius:4px;margin:14px 14px 0;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;">'
+    +'<div><div style="font-size:7.5px;color:'+DIM+';letter-spacing:3px;">TODAY\'S XP</div><div style="font-size:34px;font-weight:700;color:#A78BFA;line-height:1.05;margin-top:2px;">'+todayXp+'</div></div>'
+    +'<div style="text-align:right;"><div style="font-size:11px;font-weight:700;color:'+r.color+';">'+r.label+'</div>'
+    +'<div style="font-size:8px;color:'+mc+';margin-top:4px;font-weight:700;">'+ml+'</div>'
+    +'<div style="font-size:8px;color:'+DIM+';margin-top:2px;">'+qc+'/'+QUESTS.length+' quests · Day '+arc.dayNumber+'</div>'
+    +'<div style="font-size:7.5px;color:#4ADE80;margin-top:3px;letter-spacing:1px;">LIVE XP AUTO-SAVED</div>'
+    +'</div></div>';
+
+  var byS={};QUESTS.forEach(function(q){if(!byS[q.stat])byS[q.stat]=[];byS[q.stat].push(q);});
+  var groups='';
+  STAT_KEYS.forEach(function(stat){
+    var qs=byS[stat]||[],m=STAT_META[stat],rows='';
+    qs.forEach(function(q){
+      var done=!!S.today.quests[q.id];
+      rows+='<div class="qrow" data-a="tq" data-qid="'+q.id+'" data-xp="'+q.xp+'" style="display:flex;align-items:center;gap:12px;padding:9px 6px;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        +'<div style="width:17px;height:17px;border-radius:3px;flex-shrink:0;border:'+(done?"none":"1.5px solid rgba(255,255,255,0.22)")+';background:'+(done?m.color:"transparent")+';display:flex;align-items:center;justify-content:center;transition:all .2s;pointer-events:none;">'
+        +(done?'<span style="color:#080810;font-size:10px;font-weight:700;">✓</span>':'')+'</div>'
+        +'<div style="flex:1;font-size:11.5px;color:'+(done?DIM:"#E2E8F0")+';text-decoration:'+(done?"line-through":"none")+';line-height:1.4;pointer-events:none;">'+esc(q.label)+'</div>'
+        +'<div style="font-size:10px;color:'+(done?DIM:m.color)+';font-weight:700;flex-shrink:0;pointer-events:none;">+'+q.xp+'</div>'
+        +'</div>';
+    });
+    groups+='<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:4px;margin:8px 14px 0;padding:14px;">'
+      +'<div style="font-size:8px;letter-spacing:3.5px;color:'+m.color+';margin-bottom:8px;font-weight:700;">'+m.icon+' '+lbl4(stat)+'</div>'
+      +rows+'</div>';
+  });
+
+  var notes='<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:4px;margin:8px 14px 0;padding:14px;">'
+    +slbl("DAY NOTES")
+    +'<textarea id="nta" style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:3px;color:#E2E8F0;font-size:11px;font-family:\'IBM Plex Mono\',monospace;padding:10px 12px;min-height:80px;line-height:1.6;" placeholder="'+(isSummer?"How was work? Body? Social? Honest truth...":"Study load, stress, wins, honest truth...")+'">'+esc(S.today.notes||'')+'</textarea>'
+    +'</div>';
+
+  var closeHelp='<div style="font-size:8.5px;color:'+DIM+';text-align:center;line-height:1.5;margin:10px 18px 0;">Tap quests whenever they happen. XP updates immediately. Use Close Day only when you are ready to move to the next day.</div>';
+  var btn='<div style="padding:12px 14px 4px;"><button data-a="commit" style="width:100%;background:'+(todayXp>0?"linear-gradient(135deg,#7C3AED,#4C1D95)":"rgba(255,255,255,0.04)")+';border:1px solid '+(todayXp>0?"rgba(139,92,246,0.5)":"rgba(255,255,255,0.1)")+';border-radius:4px;color:'+(todayXp>0?"#E2E8F0":DIM)+';padding:15px;font-size:10px;letter-spacing:4px;font-weight:700;">CLOSE DAY '+arc.dayNumber+' · +'+todayXp+' XP</button></div>';
+
+  return banner+groups+notes+closeHelp+btn+'<div style="height:8px;"></div>';
+}
+
+// ─── BOSS TAB ─────────────────────────────────────────────────────────────────
+function renderBossTab(){
+  var arc=S.arc,isSummer=arc.mode==="summer";
+  var BOSSES=getBosses(arc.mode);
+  var mc=isSummer?"#FB923C":"#38BDF8",ml=isSummer?"☀️ SUMMER":"📚 SCHOOL";
+  var todayXp=sumObj(S.today.quests)+sumObj(S.today.boss);
+
+  var hdr='<div style="background:'+(isSummer?"rgba(251,146,60,0.06)":"rgba(56,189,248,0.06)")+';border:1px solid '+mc+'33;border-radius:4px;margin:14px 14px 0;padding:14px 16px;">'
+    +'<div style="font-size:8px;letter-spacing:4px;color:'+mc+';margin-bottom:6px;">WEEKLY BOSS QUESTS · '+ml+'</div>'
+    +'<div style="font-size:10px;color:'+MUTED+';line-height:1.6;">'+(isSummer?"Summer bosses: work performance, reading, social presence.":"School bosses: study hours, law focus, career moves.")+'</div></div>';
+
+  var cards='';
+  BOSSES.forEach(function(b){
+    var done=!!S.today.boss[b.id],col=b.stat?STAT_META[b.stat].color:"#FBBF24";
+    cards+='<div class="crd" data-a="tb" data-bid="'+b.id+'" data-xp="'+b.xp+'" style="background:'+PANEL+';border:1px solid '+(done?col+"44":EDGE)+';border-radius:4px;margin:8px 14px 0;padding:16px;transition:border-color .2s;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none;">'
+      +'<div style="flex:1;">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
+      +'<div style="width:20px;height:20px;border-radius:3px;flex-shrink:0;border:'+(done?"none":"1.5px solid "+col+"55")+';background:'+(done?col:"transparent")+';display:flex;align-items:center;justify-content:center;transition:all .2s;">'
+      +(done?'<span style="color:#080810;font-size:12px;font-weight:700;">✓</span>':'<span style="color:'+col+';font-size:13px;">'+b.icon+'</span>')
+      +'</div><div style="font-size:11px;font-weight:700;color:'+(done?DIM:"#E2E8F0")+';text-decoration:'+(done?"line-through":"none")+';">'+esc(b.label)+'</div></div>'
+      +'<div style="font-size:10px;color:'+DIM+';line-height:1.5;padding-left:28px;">'+esc(b.desc)+'</div>'
+      +'</div>'
+      +'<div style="flex-shrink:0;text-align:right;"><div style="font-size:14px;font-weight:700;color:'+(done?DIM:col)+';">+'+b.xp+'</div><div style="font-size:7.5px;color:'+DIM+';margin-top:2px;">XP</div></div>'
+      +'</div></div>';
+  });
+
+  var hist='';
+  if((arc.bossLog||[]).length>0){
+    var rows='';
+    (arc.bossLog||[]).slice().reverse().slice(0,10).forEach(function(b){rows+='<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:10px;"><span style="color:'+DIM+';">Day '+b.day+'</span><span style="color:#E2E8F0;flex:1;padding:0 10px;">'+esc(b.label)+'</span><span style="color:#FBBF24;font-weight:700;">+'+b.xp+'</span></div>';});
+    hist=card(slbl("BOSS HISTORY")+rows,"margin:8px 14px 0;");
+  }
+
+  var btn=Object.keys(S.today.boss).length>0?'<div style="padding:12px 14px 4px;"><button data-a="commit" style="width:100%;background:linear-gradient(135deg,#B45309,#78350F);border:1px solid rgba(251,191,36,0.4);border-radius:4px;color:#E2E8F0;padding:15px;font-size:10px;letter-spacing:4px;font-weight:700;">CLOSE DAY WITH BOSS XP · +'+todayXp+' XP</button></div>':'';
+
+  return hdr+cards+hist+btn+'<div style="height:8px;"></div>';
+}
+
+// ─── WEEKLY REVIEW ────────────────────────────────────────────────────────────
+function renderWeeklyTab(){
+  var arc=S.arc;
+  var cards='';
+  STAT_KEYS.forEach(function(k){
+    var m=STAT_META[k],sc=S.scores[k],col=SCORE_COLORS[sc],gain=calcGain(sc,arc.stats[k]);
+    var btns='';
+    for(var v=0;v<=5;v++){btns+='<button data-a="sc" data-key="'+k+'" data-val="'+v+'" style="flex:1;padding:8px 0;border-radius:3px;border:1px solid '+(v<=sc?SCORE_COLORS[v]+"77":"rgba(255,255,255,0.1)")+';background:'+(v<=sc?SCORE_COLORS[v]+"22":"transparent")+';color:'+(v<=sc?SCORE_COLORS[v]:DIM)+';font-size:11px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;">'+v+'</button>';}
+    cards+='<div style="background:'+PANEL+';border:1px solid '+(sc>=3?m.color+"33":EDGE)+';border-radius:4px;margin:8px 14px 0;padding:16px;transition:border-color .2s;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+m.icon+'</span>'
+      +'<div><div style="font-size:10px;font-weight:700;color:'+m.color+';letter-spacing:1.5px;">'+lbl4(k)+'</div><div style="font-size:8px;color:'+DIM+';margin-top:1px;">Current: '+arc.stats[k]+'</div></div></div>'
+      +'<div style="text-align:right;"><div style="font-size:22px;font-weight:700;color:'+col+';line-height:1;">'+sc+'</div><div style="font-size:8px;color:'+col+';letter-spacing:1px;">'+SCORE_LABELS[sc]+'</div></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:4px;">'+btns+'</div>'
+      +(sc>=3?'<div style="margin-top:8px;font-size:9px;text-align:right;color:#4ADE80;">'+arc.stats[k]+' + '+gain+' → '+Math.min(100,arc.stats[k]+gain)+(gain===0?'<span style="color:'+DIM+'"> (stat resistant)</span>':'')+'</div>':'')
+      +'</div>';
+  });
+
+  var prev='';
+  if(S.gainPrev){
+    var rows='';
+    STAT_KEYS.forEach(function(k){var g=S.gainPrev[k]||0,m=STAT_META[k];rows+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:10px;"><span style="color:'+m.color+';width:90px;">'+lbl4(k)+'</span><span style="color:#E2E8F0;">'+arc.stats[k]+'</span><span style="color:'+DIM+';">→</span><span style="color:'+(g>0?"#4ADE80":DIM)+';font-weight:'+(g>0?"700":"400")+';">'+Math.min(100,arc.stats[k]+g)+'</span>'+(g>0?'<span style="color:#4ADE80;font-size:9px;">+'+g+'</span>':'')+(g===0&&S.scores[k]>=3?'<span style="color:'+DIM+';font-size:9px;">resistant</span>':'')+'</div>';});
+    prev='<div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);border-radius:4px;margin:0 14px 8px;padding:14px;">'+slbl("PREVIEW GAINS")+rows+'</div>';
+  }
+
+  var hist='';
+  if((arc.weekReviews||[]).length>0){
+    var items='';
+    (arc.weekReviews||[]).slice().reverse().forEach(function(rv){
+      var chips='';STAT_KEYS.forEach(function(k){var g=rv.gains[k]||0,m=STAT_META[k];chips+='<div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:2px;background:'+(g>0?m.color+"15":"rgba(255,255,255,0.04)")+';border:1px solid '+(g>0?m.color+"33":"rgba(255,255,255,0.07)");chips+='"><span style="font-size:8px;color:'+m.color+';">'+m.icon+'</span><span style="font-size:8px;color:'+(g>0?"#4ADE80":DIM)+';">'+(g>0?"+"+g:"—")+'</span></div>';});
+      items+='<div style="margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:12px;"><div style="font-size:9px;color:'+DIM+';margin-bottom:6px;">Week '+rv.week+' · after Day '+rv.day+'</div><div style="display:flex;flex-wrap:wrap;gap:4px;">'+chips+'</div></div>';
+    });
+    hist=card(slbl("REVIEW HISTORY")+items,"margin:0 14px;");
+  }
+
+  return '<div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);border-radius:4px;margin:14px 14px 0;padding:14px 16px;">'
+    +'<div style="font-size:8px;letter-spacing:4px;color:rgba(74,222,128,0.7);margin-bottom:6px;">WEEKLY REVIEW</div>'
+    +'<div style="font-size:10px;color:'+MUTED+';line-height:1.6;">Score each stat 0–5. Stats only grow when you earn it. High stats resist easy gains.</div></div>'
+    +cards
+    +'<div style="padding:12px 14px;display:flex;gap:8px;">'
+    +'<button data-a="preview" style="flex:1;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:4px;color:#4ADE80;padding:13px;font-size:9px;letter-spacing:3px;font-weight:700;">PREVIEW</button>'
+    +'<button data-a="commitReview" style="flex:2;background:linear-gradient(135deg,#065F46,#022C22);border:1px solid rgba(74,222,128,0.4);border-radius:4px;color:#E2E8F0;padding:13px;font-size:9px;letter-spacing:3px;font-weight:700;">COMMIT REVIEW</button>'
+    +'</div>'
+    +prev+hist+'<div style="height:8px;"></div>';
+}
+
+// ─── CUSTOMIZATION PANELS ─────────────────────────────────────────────────────
+function renderShareCard(){
+  var link=buildShareLink();
+  var starter=buildQuestionnaireLink();
+  return '<div style="background:rgba(74,222,128,0.055);border:1px solid rgba(74,222,128,0.24);border-radius:4px;margin:14px 14px 0;padding:16px;">'
+    +slbl("SHARED PROFILE LINKS")
+    +'<div style="font-size:8px;letter-spacing:3px;color:#4ADE80;margin-bottom:8px;">QUESTIONNAIRE STARTER LINK</div>'
+    +'<div style="font-size:9px;color:'+MUTED+';line-height:1.65;margin-bottom:10px;">Send this to someone who should answer the setup questions herself. It opens profile creation with your current stat names, quest names, boss quests, and custom quests as a template.</div>'
+    +'<textarea id="starterText" class="sharebox" readonly>'+esc(starter)+'</textarea>'
+    +'<button data-a="copyStarter" style="width:100%;margin-top:8px;background:rgba(74,222,128,0.11);border:1px solid rgba(74,222,128,0.35);border-radius:4px;color:#4ADE80;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;">COPY QUESTIONNAIRE LINK</button>'
+    +'<div style="height:1px;background:rgba(255,255,255,0.06);margin:15px 0;"></div>'
+    +'<div style="font-size:8px;letter-spacing:3px;color:'+DIM+';margin-bottom:8px;">FULL PROFILE SNAPSHOT LINK</div>'
+    +'<div style="font-size:9px;color:'+MUTED+';line-height:1.65;margin-bottom:10px;">Use this only when you already created the profile and want another device to import the exact same stats, XP, history, notes, and current day.</div>'
+    +'<textarea id="shareText" class="sharebox" readonly>'+esc(link)+'</textarea>'
+    +'<div style="display:flex;gap:8px;margin-top:8px;">'
+    +'<button data-a="copyShare" style="flex:1;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);border-radius:4px;color:#A78BFA;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;">COPY SNAPSHOT</button>'
+    +'<button data-a="refreshShare" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:'+DIM+';padding:10px;font-size:8px;letter-spacing:2px;">REFRESH</button>'
+    +'</div>'
+    +'<div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0;"></div>'
+    +'<div style="font-size:8px;letter-spacing:3px;color:'+DIM+';margin-bottom:8px;">IMPORT LINK</div>'
+    +'<textarea id="importText" class="sharebox" placeholder="Paste a questionnaire or snapshot link here..."></textarea>'
+    +'<button data-a="importNow" style="width:100%;margin-top:8px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);border-radius:4px;color:#A78BFA;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;">OPEN / IMPORT PASTED LINK</button>'
+    +'<div style="font-size:8px;color:'+DIM+';line-height:1.5;margin-top:9px;">Static-link version: links import a snapshot or questionnaire template. They do not live-sync changes across devices.</div>'
+    +'</div>';
+}
+function renderQuestionnaireGuide(){
+  var blocks='';
+  STAT_KEYS.forEach(function(k){
+    var m=STAT_META[k],qs=STAT_QUESTIONS[k];
+    var rows=qs.map(function(q,i){return '<div style="font-size:9px;color:'+MUTED+';line-height:1.45;margin:5px 0;">'+(i+1)+'. '+esc(q)+'</div>';}).join('');
+    blocks+='<div style="border-left:2px solid '+m.color+'55;padding-left:10px;margin-bottom:13px;">'
+      +'<div style="font-size:9px;color:'+m.color+';font-weight:700;letter-spacing:1.5px;margin-bottom:4px;">'+m.icon+' '+lbl4(k)+'</div>'+rows+'</div>';
+  });
+  return '<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:4px;margin:10px 14px 0;padding:16px;">'
+    +slbl("QUESTIONNAIRE")
+    +'<div style="font-size:9px;color:'+DIM+';line-height:1.6;margin-bottom:12px;">Scoring: 1 = very weak, 2 = inconsistent, 3 = maintained, 4 = strong, 5 = excellent. During profile creation, the app converts each category average into a starting stat.</div>'
+    +blocks+'</div>';
+}
+function renderQuestEditor(){
+  var mode=S.arc.mode,modeLabel=mode==="summer"?"SUMMER":"SCHOOL",quests=getQuests(mode);
+  var rows='';
+  quests.forEach(function(q){
+    var m=STAT_META[q.stat]||{color:'#A78BFA',icon:'✦'};
+    rows+='<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
+      +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;"><span style="color:'+m.color+';font-size:12px;">'+m.icon+'</span><span style="font-size:8px;color:'+DIM+';letter-spacing:1px;">'+esc(q.stat)+(q.custom?' · CUSTOM':'')+'</span>'+(q.custom?'<button data-a="delQ" data-id="'+q.id+'" style="margin-left:auto;background:rgba(248,113,113,0.10);border:1px solid rgba(248,113,113,0.28);border-radius:3px;color:#F87171;padding:4px 7px;font-size:7px;letter-spacing:1px;">DELETE</button>':'')+'</div>'
+      +'<div style="display:flex;gap:7px;">'
+      +'<input type="text" id="ql-'+q.id+'" value="'+esc(q.label)+'" maxlength="70" style="flex:1;font-size:10px;min-width:0;"/>'
+      +'<input type="number" id="qx-'+q.id+'" value="'+q.xp+'" min="1" max="999" style="width:66px;font-size:10px;"/>'
+      +'</div></div>';
+  });
+  return '<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:4px;margin:10px 14px 0;padding:16px;">'
+    +slbl("RENAME / ADD QUESTS · "+modeLabel)
+    +'<div style="font-size:9px;color:'+DIM+';line-height:1.6;margin-bottom:10px;">These names and XP values are saved only to this profile. Switch School/Summer on the Home tab to edit the other quest list.</div>'
+    +rows
+    +'<button data-a="saveQuestNames" style="width:100%;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);border-radius:4px;color:#A78BFA;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;margin-top:10px;">SAVE QUEST CHANGES</button>'
+    +'<div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0;"></div>'
+    +'<div style="font-size:8px;letter-spacing:3px;color:'+DIM+';margin-bottom:8px;">ADD QUEST</div>'
+    +'<div style="display:flex;gap:7px;margin-bottom:7px;"><select id="nq-stat" style="width:38%;font-size:9px;">'+statOptions(STAT_KEYS[0])+'</select><input id="nq-xp" type="number" value="10" min="1" max="999" style="width:70px;font-size:9px;"/><input id="nq-label" type="text" placeholder="Quest name..." maxlength="70" style="flex:1;font-size:9px;min-width:0;"/></div>'
+    +'<button data-a="addQ" style="width:100%;background:rgba(74,222,128,0.09);border:1px solid rgba(74,222,128,0.28);border-radius:4px;color:#4ADE80;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;">ADD QUEST TO '+modeLabel+'</button>'
+    +'</div>';
+}
+function renderBossEditor(){
+  var mode=S.arc.mode,modeLabel=mode==="summer"?"SUMMER":"SCHOOL",bosses=getBosses(mode);
+  var rows='';
+  bosses.forEach(function(b){
+    var m=b.stat?STAT_META[b.stat]:{color:'#FBBF24',icon:'★'};
+    rows+='<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
+      +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;"><span style="color:'+m.color+';font-size:12px;">'+(b.icon||m.icon)+'</span><span style="font-size:8px;color:'+DIM+';letter-spacing:1px;">'+esc(b.stat||'Arc')+(b.custom?' · CUSTOM':'')+'</span>'+(b.custom?'<button data-a="delB" data-id="'+b.id+'" style="margin-left:auto;background:rgba(248,113,113,0.10);border:1px solid rgba(248,113,113,0.28);border-radius:3px;color:#F87171;padding:4px 7px;font-size:7px;letter-spacing:1px;">DELETE</button>':'')+'</div>'
+      +'<div style="display:flex;gap:7px;margin-bottom:7px;"><input type="text" id="bl-'+b.id+'" value="'+esc(b.label)+'" maxlength="70" style="flex:1;font-size:10px;min-width:0;"/><input type="number" id="bx-'+b.id+'" value="'+b.xp+'" min="1" max="999" style="width:66px;font-size:10px;"/></div>'
+      +'<input type="text" id="bd-'+b.id+'" value="'+esc(b.desc)+'" maxlength="140" style="width:100%;font-size:10px;"/>'
+      +'</div>';
+  });
+  return '<div style="background:'+PANEL+';border:1px solid '+EDGE+';border-radius:4px;margin:10px 14px 0;padding:16px;">'
+    +slbl("RENAME / ADD BOSS QUESTS · "+modeLabel)
+    +'<div style="font-size:9px;color:'+DIM+';line-height:1.6;margin-bottom:10px;">Boss quests can be renamed with custom descriptions and XP. Custom boss quests appear only in this profile.</div>'
+    +rows
+    +'<button data-a="saveBossNames" style="width:100%;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.32);border-radius:4px;color:#FBBF24;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;margin-top:10px;">SAVE BOSS CHANGES</button>'
+    +'<div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0;"></div>'
+    +'<div style="font-size:8px;letter-spacing:3px;color:'+DIM+';margin-bottom:8px;">ADD BOSS QUEST</div>'
+    +'<div style="display:flex;gap:7px;margin-bottom:7px;"><select id="nb-stat" style="width:38%;font-size:9px;"><option value="">Arc</option>'+statOptions(STAT_KEYS[0])+'</select><input id="nb-xp" type="number" value="100" min="1" max="999" style="width:70px;font-size:9px;"/><input id="nb-label" type="text" placeholder="Boss name..." maxlength="70" style="flex:1;font-size:9px;min-width:0;"/></div>'
+    +'<input id="nb-desc" type="text" placeholder="Boss requirement / description..." maxlength="140" style="width:100%;font-size:9px;margin-bottom:7px;"/>'
+    +'<button data-a="addB" style="width:100%;background:rgba(74,222,128,0.09);border:1px solid rgba(74,222,128,0.28);border-radius:4px;color:#4ADE80;padding:10px;font-size:8px;letter-spacing:2px;font-weight:700;">ADD BOSS TO '+modeLabel+'</button>'
+    +'</div>';
+}
+
+// ─── CODEX TAB ────────────────────────────────────────────────────────────────
+function renderThemePicker(){
+  var cur=(S.arc&&S.arc.theme)||"nightmare";
+  var cards='';
+  Object.keys(THEMES).forEach(function(id){
+    var t=THEMES[id],active=id===cur;
+    cards+='<div class="crd" data-a="setTheme" data-theme="'+id+'" style="background:'+(active?t.accent+'16':PANEL)+';border:1px solid '+(active?t.accent+'66':EDGE)+';border-radius:8px;padding:13px;margin-bottom:8px;display:flex;gap:12px;align-items:center;">'
+      +'<div style="width:34px;height:34px;border-radius:50%;background:'+t.accent+'18;border:1px solid '+t.accent+'55;color:'+t.accent+';display:flex;align-items:center;justify-content:center;font-size:17px;pointer-events:none;">'+t.icon+'</div>'
+      +'<div style="flex:1;pointer-events:none;"><div style="font-size:10px;font-weight:700;letter-spacing:1.6px;color:'+(active?t.accent:'#E2E8F0')+';">'+t.name+'</div><div style="font-size:8.5px;color:'+DIM+';line-height:1.45;margin-top:3px;">'+t.desc+'</div></div>'
+      +(active?'<div style="font-size:7.5px;color:'+t.accent+';border:1px solid '+t.accent+'55;border-radius:3px;padding:3px 6px;pointer-events:none;">ACTIVE</div>':'')
+      +'</div>';
+  });
+  return '<div style="font-size:9px;color:'+DIM+';line-height:1.6;margin-bottom:12px;">Theme is saved per profile. Your profile can use the darker nightmare path while hers can use the celestial/heavenly path. Ranks still follow the same ascension ladder.</div>'+cards;
+}
+
+function renderCodexTab(){
+  var arc=S.arc,isSummer=arc.mode==="summer";
+  var mc=isSummer?"#FB923C":"#38BDF8";
+  var daysLeft=Math.max(0,61-arc.dayNumber);
+  var phase=getPhase(arc.dayNumber);
+
+  var labelEditor=slbl("RENAME STATS")
+    +'<div style="font-size:9px;color:'+DIM+';line-height:1.6;margin-bottom:14px;">Each profile can have its own stat names. Change them to match your focus.</div>';
+  STAT_KEYS.forEach(function(k){
+    var m=STAT_META[k];
+    var curLabel=arc.statLabels?arc.statLabels[k]:k;
+    labelEditor+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+      +'<span style="font-size:14px;color:'+m.color+';flex-shrink:0;">'+m.icon+'</span>'
+      +'<span style="font-size:8px;color:'+DIM+';width:70px;flex-shrink:0;letter-spacing:1px;">'+k.toUpperCase()+'</span>'
+      +'<input type="text" id="sl-'+k+'" value="'+esc(curLabel)+'" maxlength="18" placeholder="'+k+'" '
+      +'style="flex:1;font-size:11px;padding:7px 10px;border-radius:4px;color:#E2E8F0;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);font-family:\'IBM Plex Mono\',monospace;"/>'
+      +'</div>';
+  });
+  labelEditor+='<button data-a="saveLabels" style="width:100%;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);border-radius:4px;color:#A78BFA;padding:11px;font-size:9px;letter-spacing:3px;font-weight:700;margin-top:4px;">SAVE LABELS</button>';
+
+  var sheetData=[["Name",S.profile],["Arc","60-Day Ascension Arc"],["Build","Scholar-Warrior / Strategist"],
+    ["Theme",theme().name],["Season",isSummer?"☀️ Summer (Jun–Aug 7)":"📚 School"],
+    ["Total XP",num(arc.totalXp)],["Days Elapsed",String(arc.dayNumber-1)],["Days Remaining",String(daysLeft)],
+    ["Current Streak",(arc.streak||0)+" days"],["Best Streak",(arc.bestStreak||0)+" days"],
+    ["Week Reviews",String((arc.weekReviews||[]).length)],["Boss Clears",String((arc.bossLog||[]).length)]];
+  var sRows='';
+  sheetData.forEach(function(r){sRows+='<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:10px;"><span style="color:'+DIM+';width:110px;flex-shrink:0;">'+r[0]+':</span><span style="color:'+(r[0]==="Season"?mc:r[0]==="Theme"?theme().accent:'#E2E8F0')+';">'+esc(String(r[1]))+'</span></div>';});
+
+  var tierRows='';
+  TIERS.forEach(function(t){var active=getTier(arc.level).name===t.name;tierRows+='<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);opacity:'+(active?1:0.35)+';"><div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:'+(active?t.color:"transparent")+';border:1.5px solid '+t.color+';"></div><div style="flex:1;font-size:10px;color:'+(active?t.color:"#E2E8F0")+';font-weight:'+(active?"700":"400")+';">'+t.name+'</div><div style="font-size:9px;color:'+DIM+';">Lv '+t.min+'–'+t.max+'</div>'+(active?'<div style="font-size:7.5px;color:'+t.color+';border:1px solid '+t.color+'55;padding:1px 5px;border-radius:2px;">YOU</div>':'')+'</div>';});
+
+  var logRows='';
+  if(arc.history.length===0){logRows='<div style="font-size:11px;color:'+DIM+';text-align:center;padding:20px 0;">No days closed yet.</div>';}
+  else{arc.history.slice().reverse().slice(0,20).forEach(function(h){var r=dayRating(h.xp);logRows+='<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);"><div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;"><span style="color:'+DIM+';">Day '+h.day+'</span><span style="color:'+(h.mode==="summer"?"#FB923C55":"#38BDF855")+';font-size:8px;">'+(h.mode==="summer"?"☀️":"📚")+'</span><span style="color:'+r.color+';">'+r.short+'</span><span style="color:#A78BFA;font-weight:700;">+'+h.xp+' XP</span><span style="color:'+DIM+';">'+h.quests+'q'+(h.boss>0?' · '+h.boss+'B':'')+'</span></div>'+(h.notes?'<div style="margin-top:5px;font-size:9.5px;color:'+DIM+';line-height:1.5;font-style:italic;border-left:2px solid rgba(167,139,250,0.3);padding-left:8px;">'+esc(h.notes.length>120?h.notes.slice(0,120)+'...':h.notes)+'</div>':'')+'</div>';});}
+
+  var phaseRows='';
+  PHASES.forEach(function(p){var a=phase===p,d=arc.dayNumber>p.range[1];phaseRows+='<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);opacity:'+(d?0.45:1)+';"><div style="display:flex;align-items:center;gap:8px;"><div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:'+(a?"#A78BFA":d?"#4ADE80":"rgba(255,255,255,0.1)")+';"></div><div><div style="font-size:10px;color:'+(a?"#A78BFA":"#E2E8F0")+';font-weight:'+(a?"700":"400")+';">Days '+p.range[0]+'–'+p.range[1]+' · '+p.name+'</div><div style="font-size:9px;color:'+DIM+';margin-top:2px;font-style:italic;">"'+p.q+'"</div></div></div></div>';});
+
+  var hero='<div style="background:linear-gradient(135deg,'+theme().accent+'14,'+theme().accent2+'0d);border:1px solid '+theme().accent+'30;border-radius:10px;margin:14px 14px 0;padding:16px;">'
+    +'<div style="font-size:8px;letter-spacing:4px;color:'+DIM+';margin-bottom:7px;">CODEX</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;"><div style="width:34px;height:34px;border-radius:50%;background:'+theme().accent+'18;border:1px solid '+theme().accent+'55;color:'+theme().accent+';display:flex;align-items:center;justify-content:center;font-size:18px;">'+theme().icon+'</div><div><div style="font-size:13px;font-weight:700;color:#E2E8F0;letter-spacing:1.5px;">Control Room</div><div style="font-size:9px;color:'+MUTED+';line-height:1.5;margin-top:2px;">Open only the section you need: links, themes, stat names, quests, boss quests, logs, or ladder.</div></div></div></div>';
+
+  return hero
+    +codexSection('share','SHARE / IMPORT LINKS','Questionnaire starter link and full profile snapshot.','#4ADE80',renderShareCard(),true)
+    +codexSection('theme','PROFILE THEME','Choose the visual skin for this profile only.',theme().accent,renderThemePicker(),false)
+    +codexSection('labels','STAT LABELS','Rename Physical, Mental, Discipline, and other stat categories.','#A78BFA',labelEditor,false)
+    +codexSection('questionnaire','QUESTIONNAIRE GUIDE','See the questions used to create starting stat scores.','#38BDF8',renderQuestionnaireGuide(),false)
+    +codexSection('quests','QUEST EDITOR','Rename quests, change XP, or add custom quests for the current season.','#A78BFA',renderQuestEditor(),false)
+    +codexSection('bosses','BOSS QUEST EDITOR','Rename boss quests, edit descriptions, or add weekly boss quests.','#FBBF24',renderBossEditor(),false)
+    +codexSection('sheet','CHARACTER SHEET','Profile summary and current arc stats.',mc,sRows,false)
+    +codexSection('tiers','ASCENSION LADDER','The shared rank path from Sleeper to Divine.','#FBBF24',tierRows,false)
+    +codexSection('log','DAY LOG','Recently closed days and notes.','#4ADE80',logRows,false)
+    +codexSection('phases','ARC PHASES','The 60-day structure of the ascension arc.','#F472B6',phaseRows,false)
+    +'<div style="height:10px;"></div>';
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render(){
+  applyThemeGlobals();
+  var root=document.getElementById('root');
+  root.innerHTML=S.profile?renderApp():renderSelect();
+  attachInputs();
+  S.tabAnim=null;
+}
+
+function attachInputs(){
+  // Notes textarea
+  var nta=document.getElementById('nta');
+  if(nta){nta.addEventListener('input',function(){S.today.notes=nta.value;saveToday(S.profile,S.today);});}
+  // Stat sliders (profile creation)
+  document.querySelectorAll('input[data-sl]').forEach(function(sl){
+    sl.addEventListener('input',function(){
+      var k=sl.dataset.sl;S.createStats[k]=parseInt(sl.value);
+      var d=document.getElementById('sv-'+k);if(d)d.textContent=sl.value;
+    });
+  });
+  // Name input autofocus + enter key
+  var cname=document.getElementById('cname');
+  if(cname){cname.focus();cname.setSelectionRange(cname.value.length,cname.value.length);cname.addEventListener('keydown',function(e){if(e.key==='Enter')doStep2();});}
+}
+
+// ─── ACTIONS ──────────────────────────────────────────────────────────────────
+function doStep2(){
+  var cname=document.getElementById('cname');
+  var nm=(cname?cname.value:'').trim().toUpperCase();
+  if(!nm){S.createErr="Name required.";render();return;}
+  if(S.profiles.indexOf(nm)>=0){S.createErr="Name already taken.";render();return;}
+  S.createName=nm;S.createErr="";refreshCreateStatsFromAnswers();S.createStep=2;render();
+}
+
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-a]');
+  if(!el)return;
+  var a=el.dataset.a;
+
+  if(a==='pick'){
+    var name=el.dataset.name;
+    S.profile=name;setActive(name);
+    S.arc=ensureArc(loadArc(name)||makeArc(NEUTRAL_STATS));
+    S.today=loadToday(name);syncTodayXp();S.tab="profile";render();
+
+  }else if(a==='startCreate'){
+    S.creating=true;S.createStep=1;S.createName="";S.createErr="";S.createTemplate=null;S.createAnswers=makeDefaultAnswers();S.createStats=cp(NEUTRAL_STATS);render();
+
+  }else if(a==='cancelCreate'){
+    S.creating=false;S.createTemplate=null;render();
+
+  }else if(a==='step2'){
+    doStep2();
+
+  }else if(a==='back1'){
+    S.createStep=1;render();
+
+  }else if(a==='presetAman'){
+    S.createStats=cp(AMAN_STATS);render();
+
+  }else if(a==='presetNeutral'){
+    S.createAnswers=makeDefaultAnswers();S.createStats=cp(NEUTRAL_STATS);render();
+
+  }else if(a==='finish'){
+    var nm2=S.createName;
+    if(!nm2){showToast("Name required.","#EF4444");return;}
+    if(S.profiles.indexOf(nm2)>=0){showToast("Name already taken on this device.","#EF4444");return;}
+    S.profiles.push(nm2);saveProfiles(S.profiles);
+    var arc=applyCreateTemplate(ensureArc(makeArc(S.createStats)));saveArc(nm2,arc);
+    S.profile=nm2;setActive(nm2);S.arc=arc;
+    S.today=blankToday();saveToday(nm2,S.today);
+    S.creating=false;S.createTemplate=null;S.tab="profile";render();
+
+  }else if(a==='logout'){
+    S.profile=null;setActive(null);S.arc=null;S.today=blankToday();S.tab="profile";render();
+
+  }else if(a==='tab'){
+    var order=['profile','quests','boss','weekly','codex'];
+    var next=el.dataset.tab;
+    S.tabAnim=(order.indexOf(next)>=order.indexOf(S.tab))?'tabInRight':'tabInLeft';
+    S.tab=next;render();
+
+  }else if(a==='openMode'){
+    S.modeModal=true;render();
+
+  }else if(a==='closeMode'){
+    S.modeModal=false;render();
+
+  }else if(a==='quickMode'){
+    // Direct mode switch from profile tab toggle buttons
+    var newMode=el.dataset.mode;
+    if(S.arc.mode===newMode)return;
+    rollbackTodayXp();
+    S.arc=cp(S.arc);S.arc.mode=newMode;saveArc(S.profile,S.arc);
+    render();
+    showToast(newMode==="summer"?"Switched to Summer Mode":"Switched to School Mode",newMode==="summer"?"#FB923C":"#38BDF8");
+
+  }else if(a==='switchMode'){
+    var m2=el.dataset.mode;
+    rollbackTodayXp();
+    S.arc=cp(S.arc);S.arc.mode=m2;saveArc(S.profile,S.arc);
+    S.modeModal=false;render();
+    showToast(m2==="summer"?"Switched to Summer Mode":"Switched to School Mode",m2==="summer"?"#FB923C":"#38BDF8");
+
+  }else if(a==='closeLvl'){
+    S.lvlUp=null;render();
+
+  }else if(a==='tq'){
+    var qid=el.dataset.qid,xp=parseInt(el.dataset.xp)||0;
+    S.today=ensureToday(cp(S.today));
+    var q=cp(S.today.quests),aq=cp(S.today.appliedQuests||{});
+    if(q[qid]){
+      var old=aq[qid]||q[qid]||xp;delete q[qid];
+      if(aq[qid]){delete aq[qid];applyXpDelta(-old);showToast("Quest removed · -"+old+" XP","#FBBF24");}
+    }else{
+      q[qid]=xp;aq[qid]=xp;applyXpDelta(xp);showToast("Quest complete · +"+xp+" XP","#4ADE80");
+    }
+    S.today.quests=q;S.today.appliedQuests=aq;saveToday(S.profile,S.today);render();
+
+  }else if(a==='tb'){
+    var bid=el.dataset.bid,bxp=parseInt(el.dataset.xp)||0;
+    S.today=ensureToday(cp(S.today));
+    var b=cp(S.today.boss),ab=cp(S.today.appliedBoss||{});
+    if(b[bid]){
+      var oldb=ab[bid]||b[bid]||bxp;delete b[bid];
+      if(ab[bid]){delete ab[bid];applyXpDelta(-oldb);showToast("Boss removed · -"+oldb+" XP","#FBBF24");}
+    }else{
+      b[bid]=bxp;ab[bid]=bxp;applyXpDelta(bxp);showToast("Boss complete · +"+bxp+" XP","#4ADE80");
+    }
+    S.today.boss=b;S.today.appliedBoss=ab;saveToday(S.profile,S.today);render();
+
+  }else if(a==='commit'){
+    S.today=ensureToday(S.today);syncTodayXp();
+    var qxp=sumObj(S.today.quests),bxp2=sumObj(S.today.boss),earned=qxp+bxp2;
+    if(earned===0){showToast("Complete at least one quest first.","#EF4444");return;}
+    var arc2=ensureArc(cp(S.arc));arc2.stats=cp(S.arc.stats);
+    var streak2=(arc2.lastDay===arc2.dayNumber-1||arc2.lastDay===0)?(arc2.streak||0)+1:1;
+    var best=Math.max(arc2.bestStreak||0,streak2);
+    var bossEntries=Object.keys(S.today.boss).map(function(id){var bf=getAllBosses().filter(function(x){return x.id===id;})[0];return{day:arc2.dayNumber,id:id,label:bf?bf.label:id,xp:S.today.boss[id]};});
+    arc2.streak=streak2;arc2.bestStreak=best;arc2.lastDay=arc2.dayNumber;
+    arc2.history=(arc2.history||[]).concat([{day:arc2.dayNumber,xp:earned,quests:Object.keys(S.today.quests).length,boss:Object.keys(S.today.boss).length,notes:S.today.notes||"",mode:arc2.mode,date:(new Date()).toISOString().slice(0,10)}]);
+    arc2.bossLog=(arc2.bossLog||[]).concat(bossEntries);arc2.dayNumber=arc2.dayNumber+1;
+    S.arc=arc2;saveArc(S.profile,arc2);
+    S.today=blankToday();saveToday(S.profile,S.today);
+    S.tab="profile";render();
+    showToast("Day "+(arc2.dayNumber-1)+" closed · +"+earned+" XP already saved","#4ADE80");
+
+  }else if(a==='preview'){
+    var gp={};STAT_KEYS.forEach(function(k){gp[k]=calcGain(S.scores[k],S.arc.stats[k]);});S.gainPrev=gp;render();
+
+  }else if(a==='commitReview'){
+    var gains={},nStats=cp(S.arc.stats);
+    STAT_KEYS.forEach(function(k){var g=calcGain(S.scores[k],S.arc.stats[k]);gains[k]=g;nStats[k]=Math.min(100,nStats[k]+g);});
+    var wn=(S.arc.weekReviews||[]).length+1;
+    S.arc=cp(S.arc);S.arc.stats=nStats;S.arc.weekReviews=(S.arc.weekReviews||[]).concat([{week:wn,day:S.arc.dayNumber-1,scores:cp(S.scores),gains:gains}]);
+    saveArc(S.profile,S.arc);
+    S.scores=cp({Physical:0,Mental:0,Discipline:0,Intellect:0,Ambition:0,Relationship:0});S.gainPrev=null;
+    S.tab="profile";render();showToast("Weekly review committed — stats updated!","#4ADE80");
+
+  }else if(a==='sc'){
+    S.scores=cp(S.scores);S.scores[el.dataset.key]=parseInt(el.dataset.val);S.gainPrev=null;render();
+
+  }else if(a==='ans'){
+    if(!S.createAnswers)S.createAnswers=makeDefaultAnswers();
+    var ak=el.dataset.key,ai=parseInt(el.dataset.idx),av=parseInt(el.dataset.val);
+    S.createAnswers[ak][ai]=av;
+    if(!S.createStats)S.createStats=cp(NEUTRAL_STATS);
+    S.createStats[ak]=scoreFromAnswers(ak);
+    render();
+
+  }else if(a==='copyShare'){
+    var st=document.getElementById('shareText');
+    copyText((st&&st.value)||buildShareLink());
+
+  }else if(a==='copyStarter'){
+    var stq=document.getElementById('starterText');
+    copyText((stq&&stq.value)||buildQuestionnaireLink());
+
+  }else if(a==='refreshShare'){
+    render();showToast("Share link refreshed.","#A78BFA");
+
+  }else if(a==='importNow'){
+    var box=document.getElementById('importText');
+    var raw=box?box.value:'';
+    try{
+      if(String(raw).indexOf('starter=')>=0){
+        var payloadS=decData(raw.replace('#starter=','arc=').replace('starter=','arc='));
+        S.profile=null;S.arc=null;S.today=blankToday();S.creating=true;S.createErr="";S.createAnswers=makeDefaultAnswers();S.createStats=cp(NEUTRAL_STATS);
+        S.createTemplate=payloadS.template||null;
+        var nmS=uniqueProfileName(payloadS.profile||'');S.createName=nmS==='SHARED'?"":nmS;S.createStep=S.createName?2:1;
+        render();showToast("Questionnaire loaded.","#4ADE80");
+      }else{
+        var payload=decData(raw);if(importPayload(payload)){render();showToast(S.importMsg||"Profile imported.","#4ADE80");}else showToast("No profile data found.","#EF4444");
+      }
+    }catch(err){showToast("Could not import that link.","#EF4444");}
+
+  }else if(a==='saveQuestNames'){
+    var qLabels=cp(S.arc.questLabels||{}),qXp=cp(S.arc.questXp||{});
+    getQuests(S.arc.mode).forEach(function(q){
+      var li=document.getElementById('ql-'+q.id),xi=document.getElementById('qx-'+q.id);
+      if(li&&li.value.trim())qLabels[q.id]=li.value.trim();
+      var x=xi?parseInt(xi.value):q.xp;if(!isNaN(x)&&x>0)qXp[q.id]=x;
+    });
+    S.arc=ensureArc(cp(S.arc));S.arc.questLabels=qLabels;S.arc.questXp=qXp;saveArc(S.profile,S.arc);
+    render();showToast("Quest changes saved.","#A78BFA");
+
+  }else if(a==='addQ'){
+    var stq=document.getElementById('nq-stat'),lq=document.getElementById('nq-label'),xq=document.getElementById('nq-xp');
+    var label=(lq?lq.value:'').trim(); if(!label){showToast("Quest name required.","#EF4444");return;}
+    var xpq=parseInt(xq?xq.value:10); if(isNaN(xpq)||xpq<1)xpq=10;
+    var statq=stq?stq.value:'Physical';
+    var nq={id:makeId('cq_'),mode:S.arc.mode,stat:statq,label:label,xp:xpq,custom:true};
+    S.arc=ensureArc(cp(S.arc));S.arc.customQuests=(S.arc.customQuests||[]).concat([nq]);saveArc(S.profile,S.arc);
+    render();showToast("Custom quest added.","#4ADE80");
+
+  }else if(a==='delQ'){
+    var did=el.dataset.id;
+    S.arc=ensureArc(cp(S.arc));S.arc.customQuests=(S.arc.customQuests||[]).filter(function(q){return q.id!==did;});
+    if(S.arc.questLabels)delete S.arc.questLabels[did]; if(S.arc.questXp)delete S.arc.questXp[did];
+    if(S.today.quests&&S.today.quests[did])delete S.today.quests[did];
+    saveArc(S.profile,S.arc);saveToday(S.profile,S.today);render();showToast("Custom quest deleted.","#F87171");
+
+  }else if(a==='saveBossNames'){
+    var bLabels=cp(S.arc.bossLabels||{}),bDescs=cp(S.arc.bossDescs||{}),bXp=cp(S.arc.bossXp||{});
+    getBosses(S.arc.mode).forEach(function(b){
+      var li=document.getElementById('bl-'+b.id),di=document.getElementById('bd-'+b.id),xi=document.getElementById('bx-'+b.id);
+      if(li&&li.value.trim())bLabels[b.id]=li.value.trim();
+      if(di&&di.value.trim())bDescs[b.id]=di.value.trim();
+      var x=xi?parseInt(xi.value):b.xp;if(!isNaN(x)&&x>0)bXp[b.id]=x;
+    });
+    S.arc=ensureArc(cp(S.arc));S.arc.bossLabels=bLabels;S.arc.bossDescs=bDescs;S.arc.bossXp=bXp;saveArc(S.profile,S.arc);
+    render();showToast("Boss changes saved.","#FBBF24");
+
+  }else if(a==='addB'){
+    var stb=document.getElementById('nb-stat'),lb=document.getElementById('nb-label'),db=document.getElementById('nb-desc'),xb=document.getElementById('nb-xp');
+    var blabel=(lb?lb.value:'').trim(); if(!blabel){showToast("Boss name required.","#EF4444");return;}
+    var bdesc=(db?db.value:'').trim()||"Complete this weekly boss quest.";
+    var xpb=parseInt(xb?xb.value:100); if(isNaN(xpb)||xpb<1)xpb=100;
+    var statb=stb&&stb.value?stb.value:null;
+    var nb={id:makeId('cb_'),mode:S.arc.mode,stat:statb,icon:statb?STAT_META[statb].icon:'★',label:blabel,desc:bdesc,xp:xpb,custom:true};
+    S.arc=ensureArc(cp(S.arc));S.arc.customBosses=(S.arc.customBosses||[]).concat([nb]);saveArc(S.profile,S.arc);
+    render();showToast("Custom boss added.","#4ADE80");
+
+  }else if(a==='delB'){
+    var dbid=el.dataset.id;
+    S.arc=ensureArc(cp(S.arc));S.arc.customBosses=(S.arc.customBosses||[]).filter(function(b){return b.id!==dbid;});
+    if(S.arc.bossLabels)delete S.arc.bossLabels[dbid]; if(S.arc.bossDescs)delete S.arc.bossDescs[dbid]; if(S.arc.bossXp)delete S.arc.bossXp[dbid];
+    if(S.today.boss&&S.today.boss[dbid])delete S.today.boss[dbid];
+    saveArc(S.profile,S.arc);saveToday(S.profile,S.today);render();showToast("Custom boss deleted.","#F87171");
+
+  }else if(a==='setTheme'){
+    var tid=el.dataset.theme;
+    if(THEMES[tid]){S.arc=ensureArc(cp(S.arc));S.arc.theme=tid;saveArc(S.profile,S.arc);render();showToast('Theme set: '+THEMES[tid].name,THEMES[tid].accent);}
+
+  }else if(a==='saveLabels'){
+    // Read all label inputs and save
+    var newLabels=cp(DEFAULT_LABELS);
+    STAT_KEYS.forEach(function(k){
+      var inp=document.getElementById('sl-'+k);
+      if(inp&&inp.value.trim())newLabels[k]=inp.value.trim();
+    });
+    S.arc=cp(S.arc);S.arc.statLabels=newLabels;saveArc(S.profile,S.arc);
+    showToast("Stat labels saved!","#A78BFA");
+    render();
+  }
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+S.profiles=getProfiles();
+var imported=importStarterFromHash()||importFromHash();
+if(!imported){
+  var saved=getActive();
+  if(saved&&S.profiles.indexOf(saved)>=0){
+    S.profile=saved;
+    S.arc=ensureArc(loadArc(saved)||makeArc(NEUTRAL_STATS));
+    S.today=loadToday(saved);syncTodayXp();
+  }
+}
+render();
+if(S.importMsg)showToast(S.importMsg,S.importMsg.indexOf('Could')===0?'#EF4444':'#4ADE80');
+</script>
+</body>
+</html>
